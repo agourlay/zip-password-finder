@@ -1,0 +1,20 @@
+[package]
+name = "zip-password-finder"
+version = "0.1.0"
+authors = ["Arnaud Gourlay <arnaud.gourlay@gmail.com>"]
+description = "Zip archive password finder"
+edition = "2021"
+
+[dependencies]
+zip = "0.6.2"
+crossbeam-channel = "0.5.6"
+clap = { version = "3.2.17", features = ["cargo"] }
+indicatif = "0.17.0"
+thiserror = "1.0.32"
+num_cpus = "1.13.1"
+
+[profile.test]
+opt-level = 3 # needed for fast execution
+
+[profile.release]
+debug = true
