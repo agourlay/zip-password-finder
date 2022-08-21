@@ -1,6 +1,6 @@
 [package]
 name = "zip-password-finder"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Arnaud Gourlay <arnaud.gourlay@gmail.com>"]
 description = "Zip archive password finder"
 edition = "2021"
