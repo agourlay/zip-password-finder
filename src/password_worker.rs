@@ -39,10 +39,10 @@ pub fn password_checker(
                                 match zip.read_to_end(&mut buffer) {
                                     Err(_) => (), // password collision - continue
                                     Ok(_) => {
+                                        // Send password and continue processing while waiting for signal
                                         send_password_found
                                             .send(password)
                                             .expect("Send found password should not fail");
-                                        break;
                                     }
                                 }
                             }
