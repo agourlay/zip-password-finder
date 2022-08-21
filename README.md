@@ -55,6 +55,4 @@ OPTIONS:
 
 ## Performance
 
-It is rather slow and seems to suffer from contention as the number of workers increases.
-
-You can expect around 4000 passwords tested per second which makes it impractical for non-trivial passwords.
+It is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
