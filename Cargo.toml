@@ -9,7 +9,7 @@ edition = "2021"
 zip = "0.6.2"
 crossbeam-channel = "0.5.6"
 clap = { version = "3.2.20", features = ["cargo"] }
-indicatif = "0.17.0"
+indicatif = "0.17.1"
 thiserror = "1.0.34"
 num_cpus = "1.13.1"
 
