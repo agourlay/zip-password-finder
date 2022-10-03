@@ -1,6 +1,6 @@
 [package]
 name = "zip-password-finder"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Arnaud Gourlay <arnaud.gourlay@gmail.com>"]
 description = "Zip archive password finder"
 edition = "2021"
@@ -15,6 +15,3 @@ num_cpus = "1.13.1"
 
 [profile.test]
 opt-level = 3 # needed for fast execution
-
-[profile.release]
-debug = true
