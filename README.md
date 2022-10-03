@@ -18,39 +18,27 @@ The available charsets for generation are:
 
 ```
 ./zip-password-finder -h
-
-zip-password-finder x.x.x
-Arnaud Gourlay <arnaud.gourlay@gmail.com>
 Zip archive password finder
 
-USAGE:
-    zip-password-finder [OPTIONS] --inputFile <inputFile>
+Usage: zip-password-finder [OPTIONS] --inputFile <inputFile>
 
-OPTIONS:
-    -c, --charset <charset>
-            charset to use to generate password [default: medium] [possible values: easy, medium,
-            hard]
-
-    -h, --help
-            Print help information
-
-    -i, --inputFile <inputFile>
-            path to zip input file
-
-        --maxPasswordLen <maxPasswordLen>
-            maximum password length [default: 10]
-
-        --minPasswordLen <minPasswordLen>
-            minimum password length [default: 1]
-
-    -p, --passwordDictionary <passwordDictionary>
-            path to a password dictionary file
-
-    -V, --version
-            Print version information
-
-    -w, --workers <workers>
-            number of workers
+Options:
+  -i, --inputFile <inputFile>
+          path to zip input file
+  -w, --workers <workers>
+          number of workers
+  -p, --passwordDictionary <passwordDictionary>
+          path to a password dictionary file
+  -c, --charset <charset>
+          charset to use to generate password [default: medium] [possible values: easy, medium, hard]
+      --minPasswordLen <minPasswordLen>
+          minimum password length [default: 1]
+      --maxPasswordLen <maxPasswordLen>
+          maximum password length [default: 10]
+  -h, --help
+          Print help information
+  -V, --version
+          Print version information
 ```
 
 ## Performance

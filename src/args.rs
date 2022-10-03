@@ -1,10 +1,12 @@
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
+use crate::password_finder::CharsetChoice;
+use clap::builder::EnumValueParser;
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use clap::{Arg, Command};
 use std::path::Path;
 
-fn command() -> clap::Command<'static> {
+fn command() -> clap::Command {
     Command::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!("\n"))
@@ -14,7 +16,7 @@ fn command() -> clap::Command<'static> {
                 .help("path to zip input file")
                 .long("inputFile")
                 .short('i')
-                .takes_value(true)
+                .num_args(1)
                 .required(true),
         )
         .arg(
@@ -23,7 +25,7 @@ fn command() -> clap::Command<'static> {
                 .help("number of workers")
                 .long("workers")
                 .short('w')
-                .takes_value(true)
+                .num_args(1)
                 .required(false),
         )
         .arg(
@@ -31,7 +33,7 @@ fn command() -> clap::Command<'static> {
                 .help("path to a password dictionary file")
                 .long("passwordDictionary")
                 .short('p')
-                .takes_value(true)
+                .num_args(1)
                 .required(false),
         )
         .arg(
@@ -39,8 +41,7 @@ fn command() -> clap::Command<'static> {
                 .help("charset to use to generate password")
                 .long("charset")
                 .short('c')
-                .takes_value(true)
-                .possible_values(["easy", "medium", "hard"]) // TODO this could be derived
+                .value_parser(EnumValueParser::<CharsetChoice>::new())
                 .default_value("medium")
                 .required(false),
         )
@@ -49,7 +50,7 @@ fn command() -> clap::Command<'static> {
                 .value_parser(value_parser!(usize))
                 .help("minimum password length")
                 .long("minPasswordLen")
-                .takes_value(true)
+                .num_args(1)
                 .default_value("1")
                 .required(false),
         )
@@ -58,7 +59,7 @@ fn command() -> clap::Command<'static> {
                 .value_parser(value_parser!(usize))
                 .help("maximum password length")
                 .long("maxPasswordLen")
-                .takes_value(true)
+                .num_args(1)
                 .default_value("10")
                 .required(false),
         )
@@ -67,7 +68,7 @@ fn command() -> clap::Command<'static> {
 pub struct Arguments {
     pub input_file: String,
     pub workers: Option<usize>,
-    pub charset: String,
+    pub charset: CharsetChoice,
     pub min_password_len: usize,
     pub max_password_len: usize,
     pub password_dictionary: Option<String>,
@@ -93,7 +94,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         }
     }
 
-    let charset: &String = matches.get_one("charset").expect("impossible");
+    let charset: CharsetChoice = *matches.get_one("charset").expect("impossible");
 
     let workers: Option<&usize> = matches.try_get_one("workers")?;
     if workers == Some(&0) {
@@ -125,7 +126,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     Ok(Arguments {
         input_file: input_file.clone(),
         workers: workers.cloned(),
-        charset: charset.clone(),
+        charset,
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,
         password_dictionary: password_dictionary.cloned(),

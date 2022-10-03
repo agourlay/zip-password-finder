@@ -43,7 +43,7 @@ pub fn start_password_generation(
                     let possibilities = charset_len.pow(current_len as u32);
                     progress_bar.println(
                         format!(
-                        "Starting search space for password length {} ({} possibilities) ({} generated password so far)",
+                        "Starting search space for password length {} ({} possibilities) ({} generated passwords so far)",
                         current_len, possibilities, generated_count
                     ));
                 } else {
