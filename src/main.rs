@@ -10,7 +10,6 @@ use crate::finder_errors::FinderError;
 use crate::password_finder::password_finder;
 use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
 
-use std::cmp::max;
 use std::path::Path;
 
 fn main() {
@@ -47,8 +46,7 @@ fn main_result() -> Result<(), FinderError> {
         },
     };
 
-    // keep a thread for the password generator
-    let workers = workers.unwrap_or_else(|| max(1, num_cpus::get() - 1));
+    let workers = workers.unwrap_or_else(num_cpus::get_physical);
 
     password_finder(&input_file, workers, strategy)?;
     Ok(())

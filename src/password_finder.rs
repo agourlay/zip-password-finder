@@ -205,7 +205,6 @@ fn validate_zip(file_path: &Path) -> Result<(), FinderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::max;
 
     fn find_password_gen(
         path: &str,
@@ -216,7 +215,7 @@ mod tests {
             min_password_len: 1,
             max_password_len,
         };
-        let workers = max(1, num_cpus::get() - 1);
+        let workers = num_cpus::get_physical();
         password_finder(path, workers, strategy)
     }
 
