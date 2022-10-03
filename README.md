@@ -3,6 +3,8 @@
 
 `zip-password-finder` is a tool to find the password of protected zip files.
 
+The design of this tool is described in details in the [following blog article](https://agourlay.github.io/brute-forcing-protected-zip-rust/).
+
 It supports two modes:
 
 - dictionary: test passwords from a dictionary text file (one word per line)
