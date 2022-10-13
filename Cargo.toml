@@ -6,7 +6,7 @@ description = "Zip archive password finder"
 edition = "2021"
 
 [dependencies]
-zip = "0.6.2"
+zip = "0.6.3"
 crossbeam-channel = "0.5.6"
 clap = { version = "4.0.14", features = ["cargo"] }
 indicatif = "0.17.1"
