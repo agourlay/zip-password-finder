@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 zip = "0.6.3"
 crossbeam-channel = "0.5.6"
-clap = { version = "4.0.15", features = ["cargo"] }
+clap = { version = "4.0.17", features = ["cargo"] }
 indicatif = "0.17.1"
 thiserror = "1.0.37"
 num_cpus = "1.13.1"
