@@ -1,4 +1,5 @@
 use crossbeam_channel::Sender;
+use indicatif::ProgressBar;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
@@ -6,7 +7,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
-use indicatif::ProgressBar;
 
 pub fn start_password_reader(
     file_path: PathBuf,

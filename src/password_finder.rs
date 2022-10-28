@@ -138,7 +138,12 @@ pub fn password_finder(
             ));
             (
                 total_password_count,
-                start_password_reader(password_list_path, send_password, stop_gen_signal.clone(), progress_bar.clone()),
+                start_password_reader(
+                    password_list_path,
+                    send_password,
+                    stop_gen_signal.clone(),
+                    progress_bar.clone(),
+                ),
             )
         }
     };
