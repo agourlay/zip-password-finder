@@ -6,11 +6,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::thread::JoinHandle;
+use indicatif::ProgressBar;
 
 pub fn start_password_reader(
     file_path: PathBuf,
     send_password: Sender<String>,
     stop_signal: Arc<AtomicBool>,
+    progress_bar: ProgressBar,
 ) -> JoinHandle<()> {
     thread::Builder::new()
         .name("password-reader".to_string())
@@ -25,6 +27,7 @@ pub fn start_password_reader(
                         Ok(_) => {}
                         Err(_) => break, //disconnected
                     }
+                    progress_bar.inc(1);
                 }
             }
         })

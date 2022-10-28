@@ -1,5 +1,4 @@
 use crossbeam_channel::{Receiver, Sender};
-use indicatif::ProgressBar;
 use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,7 +12,6 @@ pub fn password_checker(
     receive_password: Receiver<String>,
     send_password_found: Sender<String>,
     stop_signal: Arc<AtomicBool>,
-    progress_bar: ProgressBar,
 ) -> JoinHandle<()> {
     let file = fs::File::open(file_path).expect("File should exist");
     thread::Builder::new()
@@ -47,7 +45,6 @@ pub fn password_checker(
                                 }
                             }
                         }
-                        progress_bar.inc(1);
                     }
                 }
             }

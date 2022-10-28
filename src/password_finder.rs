@@ -138,7 +138,7 @@ pub fn password_finder(
             ));
             (
                 total_password_count,
-                start_password_reader(password_list_path, send_password, stop_gen_signal.clone()),
+                start_password_reader(password_list_path, send_password, stop_gen_signal.clone(), progress_bar.clone()),
             )
         }
     };
@@ -155,7 +155,6 @@ pub fn password_finder(
             receive_password.clone(),
             send_found_password.clone(),
             stop_workers_signal.clone(),
-            progress_bar.clone(),
         );
         worker_handles.push(join_handle);
     }

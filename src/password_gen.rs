@@ -102,6 +102,7 @@ pub fn start_password_generation(
                 let to_push = password.iter().cloned().collect::<String>();
                 //println!("push {}", to_push);
                 generated_count += 1;
+                progress_bar.inc(1);
                 send_password.send(to_push).unwrap();
             }
         })
