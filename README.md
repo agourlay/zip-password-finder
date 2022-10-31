@@ -12,7 +12,8 @@ It supports two modes:
 
 The available charsets for generation are:
 
-- easy: lower case and upper case letters
+- basic: lowercase letters
+- easy: basic + upper case letters
 - medium: easy + digits
 - hard: medium + punctuations and extras
 
@@ -32,7 +33,7 @@ Options:
   -p, --passwordDictionary <passwordDictionary>
           path to a password dictionary file
   -c, --charset <charset>
-          charset to use to generate password [default: medium] [possible values: easy, medium, hard]
+          charset to use to generate password [default: medium] [possible values: basic, easy, medium, hard]
       --minPasswordLen <minPasswordLen>
           minimum password length [default: 1]
       --maxPasswordLen <maxPasswordLen>

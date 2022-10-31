@@ -22,6 +22,7 @@ pub enum Strategy {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CharsetChoice {
+    Basic,
     Easy,
     Medium,
     Hard,
@@ -29,11 +30,12 @@ pub enum CharsetChoice {
 
 impl clap::ValueEnum for CharsetChoice {
     fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Easy, Self::Medium, Self::Hard]
+        &[Self::Basic, Self::Easy, Self::Medium, Self::Hard]
     }
 
     fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
         match self {
+            Self::Basic => Some(clap::builder::PossibleValue::new("basic")),
             Self::Easy => Some(clap::builder::PossibleValue::new("easy")),
             Self::Medium => Some(clap::builder::PossibleValue::new("medium")),
             Self::Hard => Some(clap::builder::PossibleValue::new("hard")),
@@ -77,7 +79,7 @@ pub fn password_finder(
             min_password_len,
             max_password_len,
         } => {
-            let charset_letters = vec![
+            let charset_lowercase_letters = vec![
                 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
             ];
@@ -92,12 +94,18 @@ pub fn password_finder(
             ];
 
             let charset = match charset_choice {
-                CharsetChoice::Easy => vec![charset_letters, charset_uppercase_letters].concat(),
-                CharsetChoice::Medium => {
-                    vec![charset_letters, charset_uppercase_letters, charset_digits].concat()
+                CharsetChoice::Basic => charset_lowercase_letters,
+                CharsetChoice::Easy => {
+                    vec![charset_lowercase_letters, charset_uppercase_letters].concat()
                 }
+                CharsetChoice::Medium => vec![
+                    charset_lowercase_letters,
+                    charset_uppercase_letters,
+                    charset_digits,
+                ]
+                .concat(),
                 CharsetChoice::Hard => vec![
-                    charset_letters,
+                    charset_lowercase_letters,
                     charset_uppercase_letters,
                     charset_digits,
                     charset_punctuations,
@@ -187,7 +195,7 @@ mod tests {
         max_password_len: usize,
     ) -> Result<Option<String>, FinderError> {
         let strategy = GenPasswords {
-            charset_choice: CharsetChoice::Easy,
+            charset_choice: CharsetChoice::Basic,
             min_password_len: 1,
             max_password_len,
         };
