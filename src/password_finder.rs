@@ -125,11 +125,20 @@ pub fn password_finder(
             )
         }
         PasswordFile(password_list_path) => {
-            let file = BufReader::new(
+            let mut file = BufReader::new(
                 File::open(password_list_path.clone()).expect("Unable to open file"),
             );
             let mut total_password_count = 0;
-            for _ in file.lines() {
+            // count line number without reallocating each line
+            let mut line_buffer = Vec::new();
+            loop {
+                // read_until to avoid UTF-8 validation (unlike read_line which produce a String)
+                let res = file.read_until(b'\n', &mut line_buffer)?;
+                if res == 0 {
+                    // end of file
+                    break;
+                }
+                line_buffer.clear();
                 total_password_count += 1;
             }
             progress_bar.println(format!(
