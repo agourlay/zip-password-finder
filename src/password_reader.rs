@@ -23,11 +23,14 @@ pub fn start_password_reader(
                 if stop_signal.load(Ordering::Relaxed) {
                     break;
                 } else {
-                    match send_password.send(line.unwrap()) {
-                        Ok(_) => {}
-                        Err(_) => break, //disconnected
+                    // ignore non UTF8 strings
+                    if let Ok(password_candidate) = line {
+                        match send_password.send(password_candidate) {
+                            Ok(_) => {}
+                            Err(_) => break, //disconnected
+                        }
+                        progress_bar.inc(1);
                     }
-                    progress_bar.inc(1);
                 }
             }
         })

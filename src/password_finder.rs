@@ -142,7 +142,7 @@ pub fn password_finder(
                 total_password_count += 1;
             }
             progress_bar.println(format!(
-                "Using passwords file reader {:?} with {} lines",
+                "Using passwords file reader {:?} with {} candidates",
                 password_list_path, total_password_count
             ));
             (
