@@ -6,7 +6,6 @@ use crate::{GenPasswords, PasswordFile};
 use crossbeam_channel::{Receiver, Sender};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -72,7 +71,7 @@ pub fn password_finder(
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
     let stop_gen_signal = Arc::new(AtomicBool::new(false));
 
-    let (total_password_count, password_gen_handle) = match strategy {
+    let password_gen_handle = match strategy {
         GenPasswords {
             charset_choice,
             min_password_len,
@@ -106,58 +105,22 @@ pub fn password_finder(
                 .concat(),
             };
 
-            let mut total_password_count = 0;
-            let charset_len = charset.len();
-            for i in min_password_len..=max_password_len {
-                total_password_count += charset_len.pow(i as u32)
-            }
-
-            (
-                total_password_count,
-                start_password_generation(
-                    charset,
-                    min_password_len,
-                    max_password_len,
-                    send_password,
-                    stop_gen_signal.clone(),
-                    progress_bar.clone(),
-                ),
+            start_password_generation(
+                charset,
+                min_password_len,
+                max_password_len,
+                send_password,
+                stop_gen_signal.clone(),
+                progress_bar.clone(),
             )
         }
-        PasswordFile(password_list_path) => {
-            let mut file = BufReader::new(
-                File::open(password_list_path.clone()).expect("Unable to open file"),
-            );
-            let mut total_password_count = 0;
-            // count line number without reallocating each line
-            let mut line_buffer = Vec::new();
-            loop {
-                // read_until to avoid UTF-8 validation (unlike read_line which produce a String)
-                let res = file.read_until(b'\n', &mut line_buffer)?;
-                if res == 0 {
-                    // end of file
-                    break;
-                }
-                line_buffer.clear();
-                total_password_count += 1;
-            }
-            progress_bar.println(format!(
-                "Using passwords file reader {:?} with {} candidates",
-                password_list_path, total_password_count
-            ));
-            (
-                total_password_count,
-                start_password_reader(
-                    password_list_path,
-                    send_password,
-                    stop_gen_signal.clone(),
-                    progress_bar.clone(),
-                ),
-            )
-        }
+        PasswordFile(password_list_path) => start_password_reader(
+            password_list_path,
+            send_password,
+            stop_gen_signal.clone(),
+            progress_bar.clone(),
+        ),
     };
-
-    progress_bar.set_length(total_password_count as u64);
 
     let mut worker_handles = Vec::with_capacity(workers);
 

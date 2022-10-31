@@ -16,7 +16,15 @@ pub fn start_password_generation(
     thread::Builder::new()
         .name("password-gen".to_string())
         .spawn(move || {
+            // compute the number of passwords to generate
             let charset_len = charset.len();
+            let mut total_password_count = 0;
+            for i in min_size..=max_size {
+                total_password_count += charset_len.pow(i as u32)
+            }
+            progress_bar.set_length(total_password_count as u64);
+
+            // start generation
             progress_bar.println(format!("Generating passwords with length from {} to {} for charset with length {}\n{:?}", min_size, max_size, charset_len, charset));
             let charset_first = *charset.first().expect("charset non empty");
             let charset_last = *charset.last().expect("charset non empty");

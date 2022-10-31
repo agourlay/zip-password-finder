@@ -17,7 +17,32 @@ pub fn start_password_reader(
     thread::Builder::new()
         .name("password-reader".to_string())
         .spawn(move || {
-            let file = File::open(file_path).unwrap();
+            // compute the number of lines in the file
+            let file = File::open(&file_path).expect("Unable to open file");
+            let mut reader = BufReader::new(file);
+            let mut total_password_count = 0;
+            let mut line_buffer = Vec::new();
+            loop {
+                // count line number without reallocating each line
+                // read_until to avoid UTF-8 validation (unlike read_line which produce a String)
+                let res = reader
+                    .read_until(b'\n', &mut line_buffer)
+                    .expect("Unable to read file");
+                if res == 0 {
+                    // end of file
+                    break;
+                }
+                line_buffer.clear();
+                total_password_count += 1;
+            }
+            progress_bar.println(format!(
+                "Using passwords file reader {:?} with {} candidates.",
+                file_path, total_password_count
+            ));
+            progress_bar.set_length(total_password_count as u64);
+
+            // start actual reader
+            let file = File::open(&file_path).expect("Unable to open file");
             let reader = BufReader::new(file);
             for line in reader.lines() {
                 if stop_signal.load(Ordering::Relaxed) {
