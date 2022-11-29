@@ -171,7 +171,7 @@ pub fn password_finder(
 
 // validate that the zip requires a password
 fn validate_zip(file_path: &Path) -> Result<(), FinderError> {
-    let file = File::open(&file_path)?;
+    let file = File::open(file_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     let zip_result = archive.by_index(0);
     match zip_result {
