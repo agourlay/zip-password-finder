@@ -18,6 +18,7 @@ pub fn password_checker(
         .name(format!("worker-{}", index))
         .spawn(move || {
             let mut archive = zip::ZipArchive::new(file).expect("Archive validated before-hand");
+            let mut extraction_buffer = Vec::new();
             while !stop_signal.load(Ordering::Relaxed) {
                 match receive_password.recv() {
                     Err(_) => break, // disconnected
@@ -32,9 +33,8 @@ pub fn password_checker(
                             Ok(Err(_)) => (), // invalid password
                             Ok(Ok(mut zip)) => {
                                 // Validate password by reading the zip file to make sure it is not merely a hash collision.
-                                // Conflicts are pretty rare to not care about reusing the buffer.
-                                let mut buffer = Vec::with_capacity(zip.size() as usize);
-                                match zip.read_to_end(&mut buffer) {
+                                extraction_buffer.reserve(zip.size() as usize);
+                                match zip.read_to_end(&mut extraction_buffer) {
                                     Err(_) => (), // password collision - continue
                                     Ok(_) => {
                                         // Send password and continue processing while waiting for signal
@@ -43,6 +43,7 @@ pub fn password_checker(
                                             .expect("Send found password should not fail");
                                     }
                                 }
+                                extraction_buffer.clear();
                             }
                         }
                     }
