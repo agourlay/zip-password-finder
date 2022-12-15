@@ -17,8 +17,8 @@ pub fn password_checker(
     thread::Builder::new()
         .name(format!("worker-{}", index))
         .spawn(move || {
-            let buf_reader = std::io::BufReader::new(file);
-            let mut archive = zip::ZipArchive::new(buf_reader).expect("Archive validated before-hand");
+            let reader = std::io::BufReader::new(file);
+            let mut archive = zip::ZipArchive::new(reader).expect("Archive validated before-hand");
             let mut extraction_buffer = Vec::new();
             while !stop_signal.load(Ordering::Relaxed) {
                 match receive_password.recv() {
