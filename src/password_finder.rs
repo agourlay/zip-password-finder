@@ -1,6 +1,6 @@
 use crate::finder_errors::FinderError;
-use crate::password_gen::start_password_generation;
-use crate::password_reader::start_password_reader;
+use crate::password_gen::password_generator_count;
+use crate::password_reader::password_reader_count;
 use crate::password_worker::password_checker;
 use crate::{GenPasswords, PasswordFile};
 use crossbeam_channel::{Receiver, Sender};
@@ -11,36 +11,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use zip::result::ZipError::UnsupportedArchive;
 
+#[derive(Clone, Debug)]
 pub enum Strategy {
     PasswordFile(PathBuf),
     GenPasswords {
-        charset_choice: CharsetChoice,
+        charset: Vec<char>,
         min_password_len: usize,
         max_password_len: usize,
     },
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum CharsetChoice {
-    Basic,
-    Easy,
-    Medium,
-    Hard,
-}
-
-impl clap::ValueEnum for CharsetChoice {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Basic, Self::Easy, Self::Medium, Self::Hard]
-    }
-
-    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            Self::Basic => Some(clap::builder::PossibleValue::new("basic")),
-            Self::Easy => Some(clap::builder::PossibleValue::new("easy")),
-            Self::Medium => Some(clap::builder::PossibleValue::new("medium")),
-            Self::Hard => Some(clap::builder::PossibleValue::new("hard")),
-        }
-    }
 }
 
 pub fn password_finder(
@@ -62,10 +40,6 @@ pub fn password_finder(
     let draw_target = ProgressDrawTarget::stdout_with_hz(2);
     progress_bar.set_draw_target(draw_target);
 
-    // MPMC channel with backpressure
-    let (send_password, receive_password): (Sender<String>, Receiver<String>) =
-        crossbeam_channel::bounded(workers * 10_000);
-
     let (send_found_password, receive_found_password): (Sender<String>, Receiver<String>) =
         crossbeam_channel::bounded(1);
 
@@ -73,62 +47,24 @@ pub fn password_finder(
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
     let stop_gen_signal = Arc::new(AtomicBool::new(false));
 
-    let password_gen_handle = match strategy {
+    let total_password_count = match &strategy {
         GenPasswords {
-            charset_choice,
+            charset,
             min_password_len,
             max_password_len,
-        } => {
-            let charset_lowercase_letters = vec![
-                'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-                'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-            ];
-            let charset_uppercase_letters = vec![
-                'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-                'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-            ];
-            let charset_digits = vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-            let charset_punctuations = vec![
-                ' ', '-', '=', '!', '@', '#', '$', '%', '^', '&', '*', '_', '+', '<', '>', '/',
-                '?', '.', ';', ':', '{', '}',
-            ];
-
-            let charset = match charset_choice {
-                CharsetChoice::Basic => charset_lowercase_letters,
-                CharsetChoice::Easy => {
-                    vec![charset_lowercase_letters, charset_uppercase_letters].concat()
-                }
-                CharsetChoice::Medium => vec![
-                    charset_lowercase_letters,
-                    charset_uppercase_letters,
-                    charset_digits,
-                ]
-                .concat(),
-                CharsetChoice::Hard => vec![
-                    charset_lowercase_letters,
-                    charset_uppercase_letters,
-                    charset_digits,
-                    charset_punctuations,
-                ]
-                .concat(),
-            };
-
-            start_password_generation(
-                charset,
-                min_password_len,
-                max_password_len,
-                send_password,
-                stop_gen_signal.clone(),
-                progress_bar.clone(),
-            )
+        } => password_generator_count(charset, *min_password_len, *max_password_len),
+        PasswordFile(password_list_path) => {
+            let total = password_reader_count(password_list_path.to_path_buf())?;
+            progress_bar.println(format!(
+                "Using passwords file reader {:?} with {} candidates.",
+                password_list_path, total
+            ));
+            total
         }
-        PasswordFile(password_list_path) => start_password_reader(
-            password_list_path,
-            send_password,
-            stop_gen_signal.clone(),
-            progress_bar.clone(),
-        ),
     };
+
+    // set progress bar length according to the total number of passwords
+    progress_bar.set_length(total_password_count as u64);
 
     let mut worker_handles = Vec::with_capacity(workers);
 
@@ -136,10 +72,12 @@ pub fn password_finder(
     for i in 1..=workers {
         let join_handle = password_checker(
             i,
+            workers,
             file_path,
-            receive_password.clone(),
+            strategy.clone(),
             send_found_password.clone(),
             stop_workers_signal.clone(),
+            progress_bar.clone(),
         );
         worker_handles.push(join_handle);
     }
@@ -149,10 +87,8 @@ pub fn password_finder(
 
     match receive_found_password.recv() {
         Ok(password_found) => {
-            progress_bar.println(format!("Password found '{}'", password_found));
             // stop generating values first to avoid deadlock on channel
             stop_gen_signal.store(true, Ordering::Relaxed);
-            password_gen_handle.join().unwrap();
             // stop workers
             stop_workers_signal.store(true, Ordering::Relaxed);
             for h in worker_handles {
@@ -162,7 +98,6 @@ pub fn password_finder(
             Ok(Some(password_found))
         }
         Err(_) => {
-            progress_bar.println("Password not found :(");
             progress_bar.finish_and_clear();
             Ok(None)
         }
@@ -189,13 +124,14 @@ fn validate_zip(file_path: &Path) -> Result<(), FinderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::charsets::CharsetChoice;
 
     fn find_password_gen(
         path: &str,
         max_password_len: usize,
     ) -> Result<Option<String>, FinderError> {
         let strategy = GenPasswords {
-            charset_choice: CharsetChoice::Basic,
+            charset: CharsetChoice::Basic.to_charset(),
             min_password_len: 1,
             max_password_len,
         };

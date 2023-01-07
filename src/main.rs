@@ -1,4 +1,5 @@
 mod args;
+mod charsets;
 mod finder_errors;
 mod password_finder;
 mod password_gen;
@@ -28,7 +29,7 @@ fn main_result() -> Result<(), FinderError> {
     let Arguments {
         input_file,
         workers,
-        charset,
+        charset_choice,
         min_password_len,
         max_password_len,
         password_dictionary,
@@ -39,15 +40,21 @@ fn main_result() -> Result<(), FinderError> {
             let path = Path::new(&dict_path);
             PasswordFile(path.to_path_buf())
         }
-        None => GenPasswords {
-            charset_choice: charset,
-            min_password_len,
-            max_password_len,
-        },
+        None => {
+            let charset = charset_choice.to_charset();
+            GenPasswords {
+                charset,
+                min_password_len,
+                max_password_len,
+            }
+        }
     };
 
     let workers = workers.unwrap_or_else(num_cpus::get_physical);
-
-    password_finder(&input_file, workers, strategy)?;
+    let password = password_finder(&input_file, workers, strategy)?;
+    match password {
+        Some(password) => println!("Password found: {}", password),
+        None => println!("Password not found"),
+    };
     Ok(())
 }
