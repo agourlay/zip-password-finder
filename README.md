@@ -29,7 +29,7 @@ cargo install zip-password-finder
 
 ```
 ./zip-password-finder -h
-Zip archive password finder
+Find the password of protected ZIP files
 
 Usage: zip-password-finder [OPTIONS] --inputFile <inputFile>
 
