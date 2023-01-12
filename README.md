@@ -19,15 +19,21 @@ The available charsets for generation are:
 
 ## Installation
 
-### [crates.io](https://crates.io/crates/zip-password-finder)
+### Releases
 
-```
+Using the provided binaries in https://github.com/agourlay/zip-password-finder/releases
+
+### Crates.io
+
+Using Cargo via [crates.io](https://crates.io/crates/zip-password-finder).
+
+```bash
 cargo install zip-password-finder
 ```
 
 ## Usage
 
-```
+```bash
 ./zip-password-finder -h
 Find the password of protected ZIP files
 
