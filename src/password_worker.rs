@@ -42,7 +42,8 @@ pub fn password_checker(
     thread::Builder::new()
         .name(format!("worker-{}", index))
         .spawn(move || {
-            let mut receive_password: Box<dyn Iterator<Item = String>> = match strategy {
+            let batching_delta = worker_count as u64 * 500;
+            let mut passwords_iter: Box<dyn Iterator<Item = String>> = match strategy {
                 Strategy::GenPasswords {
                     charset,
                     min_password_len,
@@ -64,44 +65,44 @@ pub fn password_checker(
                 }
             };
             // filter passwords by worker index
-            receive_password = filter_for_worker_index(receive_password, worker_count, index);
+            passwords_iter = filter_for_worker_index(passwords_iter, worker_count, index);
             let reader = std::io::BufReader::new(file);
             let mut archive = zip::ZipArchive::new(reader).expect("Archive validated before-hand");
             let mut extraction_buffer = Vec::new();
-            let mut count = 0;
-            while !stop_signal.load(Ordering::Relaxed) {
-                match receive_password.next() {
-                    None => break, // end of generator
-                    Some(password) => {
-                        // From the Rust doc:
-                        // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
-                        // There are many passwords out there that will also pass the validity checks we are able to perform.
-                        // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
-                        let res = archive.by_index_decrypt(0, password.as_bytes());
-                        match res {
-                            Err(e) => panic!("Unexpected error {:?}", e),
-                            Ok(Err(_)) => (), // invalid password
-                            Ok(Ok(mut zip)) => {
-                                // Validate password by reading the zip file to make sure it is not merely a hash collision.
-                                extraction_buffer.reserve(zip.size() as usize);
-                                match zip.read_to_end(&mut extraction_buffer) {
-                                    Err(_) => (), // password collision - continue
-                                    Ok(_) => {
-                                        // Send password and continue processing while waiting for signal
-                                        send_password_found
-                                            .send(password)
-                                            .expect("Send found password should not fail");
-                                    }
-                                }
-                                extraction_buffer.clear();
+            let mut processed_delta: u64 = 0;
+            for password in passwords_iter {
+                // From the Rust doc:
+                // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
+                // There are many passwords out there that will also pass the validity checks we are able to perform.
+                // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
+                let res = archive.by_index_decrypt(0, password.as_bytes());
+                match res {
+                    Ok(Err(_)) => (), // invalid password
+                    Ok(Ok(mut zip)) => {
+                        // Validate password by reading the zip file to make sure it is not merely a hash collision.
+                        extraction_buffer.reserve(zip.size() as usize);
+                        match zip.read_to_end(&mut extraction_buffer) {
+                            Err(_) => (), // password collision - continue
+                            Ok(_) => {
+                                // Send password and continue processing while waiting for signal
+                                send_password_found
+                                    .send(password)
+                                    .expect("Send found password should not fail");
                             }
                         }
-                        // avoid contention on progress bar as number of workers increases
-                        count += 1;
-                        if count % 1000 == 0 {
-                            progress_bar.inc(1000);
-                        }
+                        extraction_buffer.clear();
                     }
+                    Err(e) => panic!("Unexpected error {:?}", e),
+                }
+                // having only the first worker handle the progress bar does not seem beneficial
+                // however updating in a batch fashion seems to be
+                processed_delta += 1;
+                if processed_delta == batching_delta {
+                    progress_bar.inc(batching_delta);
+                    if stop_signal.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    processed_delta = 0;
                 }
             }
         })
