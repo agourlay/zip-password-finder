@@ -31,6 +31,14 @@ Using Cargo via [crates.io](https://crates.io/crates/zip-password-finder).
 cargo install zip-password-finder
 ```
 
+### AUR
+
+You can install [`zip-password-finder`](https://aur.archlinux.org/packages?O=0&K=zip-password-finder) from the AUR using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers). For example:
+
+```bash
+paru -S zip-password-finder
+```
+
 ## Usage
 
 ```bash
