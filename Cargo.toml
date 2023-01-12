@@ -4,6 +4,7 @@ version = "0.5.1"
 description = "Find the password of protected ZIP files"
 authors = ["Arnaud Gourlay <arnaud.gourlay@gmail.com>"]
 license = "Apache-2.0"
+readme = "README.md"
 edition = "2021"
 
 [dependencies]
