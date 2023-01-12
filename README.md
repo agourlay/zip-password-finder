@@ -17,6 +17,14 @@ The available charsets for generation are:
 - medium: easy + digits
 - hard: medium + punctuations and extras
 
+## Installation
+
+### [crates.io](https://crates.io/crates/zip-password-finder)
+
+```
+cargo install zip-password-finder
+```
+
 ## Usage
 
 ```
