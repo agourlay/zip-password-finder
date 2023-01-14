@@ -1,6 +1,6 @@
 use crate::password_finder::Strategy;
-use crate::password_gen::start_password_generation;
-use crate::password_reader::start_password_reader;
+use crate::password_gen::password_generator_iter;
+use crate::password_reader::password_dictionary_reader_iter;
 use crossbeam_channel::Sender;
 use indicatif::ProgressBar;
 use std::io::Read;
@@ -43,6 +43,8 @@ pub fn password_checker(
         .name(format!("worker-{}", index))
         .spawn(move || {
             let batching_delta = worker_count as u64 * 500;
+            let first_worker = index == 1;
+            let progress_bar_delta = batching_delta * worker_count as u64;
             let mut passwords_iter: Box<dyn Iterator<Item = String>> = match strategy {
                 Strategy::GenPasswords {
                     charset,
@@ -50,17 +52,17 @@ pub fn password_checker(
                     max_password_len,
                 } => {
                     // password generator logs its progress, make sure only the first one does
-                    let pb = if index == 1 {
+                    let pb = if first_worker {
                         progress_bar.clone()
                     } else {
                         ProgressBar::hidden()
                     };
                     let iterator =
-                        start_password_generation(&charset, min_password_len, max_password_len, pb);
+                        password_generator_iter(&charset, min_password_len, max_password_len, pb);
                     Box::new(iterator)
                 }
                 Strategy::PasswordFile(dictionary_path) => {
-                    let iterator = start_password_reader(&dictionary_path);
+                    let iterator = password_dictionary_reader_iter(&dictionary_path);
                     Box::new(iterator)
                 }
             };
@@ -94,11 +96,14 @@ pub fn password_checker(
                     }
                     Err(e) => panic!("Unexpected error {:?}", e),
                 }
-                // having only the first worker handle the progress bar does not seem beneficial
-                // however updating in a batch fashion seems to be
                 processed_delta += 1;
+                // do not check internal flags too often
                 if processed_delta == batching_delta {
-                    progress_bar.inc(batching_delta);
+                    // only the first worker should update the progress bar to avoid contention
+                    if first_worker {
+                        progress_bar.inc(progress_bar_delta);
+                    }
+                    // check if we should stop
                     if stop_signal.load(Ordering::Relaxed) {
                         break;
                     }
@@ -116,7 +121,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_one_worker() {
-        let iter = start_password_reader(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(&PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -137,7 +142,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_two_workers_index_one() {
-        let iter = start_password_reader(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(&PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -158,7 +163,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_two_workers_index_two() {
-        let iter = start_password_reader(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(&PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -179,7 +184,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_three_workers_index_one() {
-        let iter = start_password_reader(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(&PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);

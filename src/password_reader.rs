@@ -24,7 +24,7 @@ pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error
     Ok(total_password_count)
 }
 
-pub fn start_password_reader(file_path: &PathBuf) -> impl Iterator<Item = String> {
+pub fn password_dictionary_reader_iter(file_path: &PathBuf) -> impl Iterator<Item = String> {
     // start actual reader
     let file = File::open(file_path).expect("Unable to open file");
     let reader = BufReader::new(file);
@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn read_passwords_from_dictionary() {
-        let iter = start_password_reader(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(&PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         assert_eq!(iter.count(), 18278);

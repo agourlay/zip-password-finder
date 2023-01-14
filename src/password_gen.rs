@@ -169,7 +169,7 @@ impl Iterator for PasswordGenerator {
     }
 }
 
-pub fn start_password_generation(
+pub fn password_generator_iter(
     charset: &Vec<char>,
     min_size: usize,
     max_size: usize,
@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn generate_password_max_size_two() {
-        let mut iter = start_password_generation(&vec!['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("a".into()));
         assert_eq!(iter.next(), Some("b".into()));
         assert_eq!(iter.next(), Some("c".into()));
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn generate_password_min_max_size_two() {
-        let mut iter = start_password_generation(&vec!['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("aa".into()));
         assert_eq!(iter.next(), Some("ab".into()));
         assert_eq!(iter.next(), Some("ac".into()));
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn generate_password_large() {
         let mut iter =
-            start_password_generation(&charset_lowercase_letters(), 1, 3, ProgressBar::hidden());
+            password_generator_iter(&charset_lowercase_letters(), 1, 3, ProgressBar::hidden());
         let gold_path = "test-files/generated-passwords-lowercase.txt";
         let gold = fs::read_to_string(gold_path).expect("gold file not found!");
         for (i1, l1) in gold.lines().enumerate() {
