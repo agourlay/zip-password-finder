@@ -131,8 +131,16 @@ mod tests {
         password_finder(path, workers, strategy)
     }
 
+    fn find_password_dictionary(
+        path: &str,
+    ) -> Result<Option<String>, FinderError> {
+        let strategy = PasswordFile(PathBuf::from("test-files/generated-passwords-lowercase.txt"));
+        let workers = num_cpus::get_physical();
+        password_finder(path, workers, strategy)
+    }
+
     #[test]
-    fn find_two_letters_password() {
+    fn find_two_letters_password_generated() {
         let password = find_password_gen("test-files/2.test.txt.zip", 2)
             .unwrap()
             .unwrap();
@@ -140,14 +148,22 @@ mod tests {
     }
 
     #[test]
-    fn fail_to_find_two_letters_password() {
+    fn find_two_letters_password_dictionary() {
+        let password = find_password_dictionary("test-files/2.test.txt.zip")
+            .unwrap()
+            .unwrap();
+        assert_eq!(password, "ab");
+    }
+
+    #[test]
+    fn fail_to_find_two_letters_password_generated() {
         // because max_password_len is 1
         let password = find_password_gen("test-files/2.test.txt.zip", 1).unwrap();
         assert!(password.is_none());
     }
 
     #[test]
-    fn find_three_letters_password() {
+    fn find_three_letters_password_generated() {
         let password = find_password_gen("test-files/3.test.txt.zip", 3)
             .unwrap()
             .unwrap();
@@ -155,14 +171,22 @@ mod tests {
     }
 
     #[test]
-    fn fail_to_find_three_letters_password() {
+    fn find_three_letters_password_dictionary() {
+        let password = find_password_dictionary("test-files/3.test.txt.zip")
+            .unwrap()
+            .unwrap();
+        assert_eq!(password, "abc");
+    }
+
+    #[test]
+    fn fail_to_find_three_letters_password_generated() {
         // because max_password_len is 2
         let password = find_password_gen("test-files/3.test.txt.zip", 2).unwrap();
         assert!(password.is_none());
     }
 
     #[test]
-    fn find_four_letters_password() {
+    fn find_four_letters_password_generated() {
         let password = find_password_gen("test-files/4.test.txt.zip", 4)
             .unwrap()
             .unwrap();
