@@ -72,4 +72,6 @@ Options:
 
 ZipCrypto is roughly a 1000 times cheaper than AES to crack with brute force.
 
-In general, it is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
+For AES make sure to use a CPU with `SHA` instructions (Intel Sandy Bridge or newer, AMD Bulldozer or newer) to get the best performance.
+
+In general this tool is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
