@@ -1,6 +1,6 @@
 [package]
 name = "zip-password-finder"
-version = "0.6.0"
+version = "0.6.1"
 description = "Find the password of protected ZIP files"
 authors = ["Arnaud Gourlay <arnaud.gourlay@gmail.com>"]
 license = "Apache-2.0"
