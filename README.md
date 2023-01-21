@@ -70,6 +70,6 @@ Options:
 
 ## Performance
 
-ZipCrypto is roughly a 1000 times cheaper to crack with brute force.
+ZipCrypto is roughly a 1000 times cheaper than AES to crack with brute force.
 
-In general it is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
+In general, it is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
