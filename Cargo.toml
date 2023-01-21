@@ -9,7 +9,10 @@ categories = ["command-line-utilities", "command-line-interface", "zip", "archiv
 edition = "2021"
 
 [dependencies]
-zip = "0.6.3"
+zip = { git = "https://github.com/agourlay/zip.git", branch = "zip-password-finder" } # dedicated fork
+pbkdf2 = "0.11.0" # parallel version did not help the performance
+hmac = { version = "0.12.1", features = ["reset"] }
+sha1 = "0.10.5"
 crossbeam-channel = "0.5.6"
 clap = { version = "4.1.1", features = ["cargo"] }
 indicatif = "0.17.3"
@@ -18,3 +21,6 @@ num_cpus = "1.15.0"
 
 [profile.test]
 opt-level = 3 # needed for fast execution
+
+[profile.release]
+debug = true

@@ -1,8 +1,11 @@
 use crate::password_finder::Strategy;
 use crate::password_gen::password_generator_iter;
 use crate::password_reader::password_dictionary_reader_iter;
+use crate::zip_utils::AesInfo;
 use crossbeam_channel::Sender;
+use hmac::Hmac;
 use indicatif::ProgressBar;
+use sha1::Sha1;
 use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -29,10 +32,12 @@ pub fn filter_for_worker_index(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn password_checker(
     index: usize,
     worker_count: usize,
     file_path: &Path,
+    aes_info: Option<AesInfo>,
     strategy: Strategy,
     send_password_found: Sender<String>,
     stop_signal: Arc<AtomicBool>,
@@ -70,31 +75,59 @@ pub fn password_checker(
             passwords_iter = filter_for_worker_index(passwords_iter, worker_count, index);
             let reader = std::io::BufReader::new(file);
             let mut archive = zip::ZipArchive::new(reader).expect("Archive validated before-hand");
+            let file_number = 0;
+
+            // AES info
+            let mut derived_key_len = 0;
+            let mut derived_key: Vec<u8> = Vec::new();
+            let mut salt: Vec<u8> = Vec::new();
+            let mut key: Vec<u8> = Vec::new();
+            if let Some(aes_info) = aes_info {
+                salt = aes_info.salt;
+                key = aes_info.key;
+                derived_key_len = aes_info.derived_key_length;
+                derived_key = vec![0; derived_key_len];
+            };
+
             let mut extraction_buffer = Vec::new();
             let mut processed_delta: u64 = 0;
             for password in passwords_iter {
-                // From the Rust doc:
-                // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
-                // There are many passwords out there that will also pass the validity checks we are able to perform.
-                // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
-                let res = archive.by_index_decrypt(0, password.as_bytes());
-                match res {
-                    Ok(Err(_)) => (), // invalid password
-                    Ok(Ok(mut zip)) => {
-                        // Validate password by reading the zip file to make sure it is not merely a hash collision.
-                        extraction_buffer.reserve(zip.size() as usize);
-                        match zip.read_to_end(&mut extraction_buffer) {
-                            Err(_) => (), // password collision - continue
-                            Ok(_) => {
-                                // Send password and continue processing while waiting for signal
-                                send_password_found
-                                    .send(password)
-                                    .expect("Send found password should not fail");
+                let password_bytes = password.as_bytes();
+                let mut potential_match = true;
+                // process AES KEY
+                if derived_key_len != 0 {
+                    // use PBKDF2 with HMAC-Sha1 to derive the key
+                    pbkdf2::pbkdf2::<Hmac<Sha1>>(password_bytes, &salt, 1000, &mut derived_key);
+                    let pwd_verify = &derived_key[derived_key_len - 2..];
+                    // the last 2 bytes should equal the password verification value
+                    potential_match = key == pwd_verify;
+                }
+
+                // ZipCrypto falls back directly here and will recompute its key for each password
+                if potential_match {
+                    // From the Rust doc:
+                    // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
+                    // There are many passwords out there that will also pass the validity checks we are able to perform.
+                    // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
+                    let res = archive.by_index_decrypt(file_number, password_bytes);
+                    match res {
+                        Ok(Err(_)) => (), // invalid password
+                        Ok(Ok(mut zip)) => {
+                            // Validate password by reading the zip file to make sure it is not merely a hash collision.
+                            extraction_buffer.reserve(zip.size() as usize);
+                            match zip.read_to_end(&mut extraction_buffer) {
+                                Err(_) => (), // password collision - continue
+                                Ok(_) => {
+                                    // Send password and continue processing while waiting for signal
+                                    send_password_found
+                                        .send(password)
+                                        .expect("Send found password should not fail");
+                                }
                             }
+                            extraction_buffer.clear();
                         }
-                        extraction_buffer.clear();
+                        Err(e) => panic!("Unexpected error {:?}", e),
                     }
-                    Err(e) => panic!("Unexpected error {:?}", e),
                 }
                 processed_delta += 1;
                 // do not check internal flags too often

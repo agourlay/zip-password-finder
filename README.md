@@ -5,12 +5,14 @@
 
 The initial design of this tool is described in details in the [following blog article](https://agourlay.github.io/brute-forcing-protected-zip-rust/).
 
-It supports two modes:
+## Features
 
-- dictionary: test passwords from a dictionary text file (one word per line)
-- brute force: generate all passwords for a given charset and a password length range
+- Supports both ZipCrypto and AES encryption.
+- Leverages multiple threads to speed up the process
+- Dictionary attack to test passwords from a dictionary text file (one word per line)
+- Brute force to generate all passwords for a given charset and a password length range
 
-The available charsets for generation are:
+The available charsets for the password generation are:
 
 - basic: lowercase letters
 - easy: basic + upper case letters
@@ -68,4 +70,6 @@ Options:
 
 ## Performance
 
-It is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
+ZipCrypto is roughly a 1000 times cheaper to crack with brute force.
+
+In general it is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.

@@ -5,6 +5,7 @@ mod password_finder;
 mod password_gen;
 mod password_reader;
 mod password_worker;
+mod zip_utils;
 
 use crate::args::{get_args, Arguments};
 use crate::finder_errors::FinderError;

@@ -2,14 +2,13 @@ use crate::finder_errors::FinderError;
 use crate::password_gen::password_generator_count;
 use crate::password_reader::password_reader_count;
 use crate::password_worker::password_checker;
+use crate::zip_utils::validate_zip;
 use crate::{GenPasswords, PasswordFile};
 use crossbeam_channel::{Receiver, Sender};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use zip::result::ZipError::UnsupportedArchive;
 
 #[derive(Clone, Debug)]
 pub enum Strategy {
@@ -27,8 +26,6 @@ pub fn password_finder(
     strategy: Strategy,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
-    // Fail early if the zip file is not valid
-    validate_zip(file_path)?;
 
     // Progress bar
     let progress_bar = ProgressBar::new(0);
@@ -39,6 +36,17 @@ pub fn password_finder(
     // Refresh terminal 2 times per seconds
     let draw_target = ProgressDrawTarget::stdout_with_hz(2);
     progress_bar.set_draw_target(draw_target);
+
+    // Fail early if the zip file is not valid
+    let aes_info = validate_zip(file_path)?;
+    match &aes_info {
+        Some(aes_info) => progress_bar.println(format!(
+            "Archive is encrypted with AES{} - expect a long wait time",
+            aes_info.aes_key_length * 8
+        )),
+        None => progress_bar
+            .println("Archive is encrypted with ZipCrypto - expect a much faster throughput"),
+    }
 
     let (send_found_password, receive_found_password): (Sender<String>, Receiver<String>) =
         crossbeam_channel::bounded(1);
@@ -56,7 +64,7 @@ pub fn password_finder(
         PasswordFile(password_list_path) => {
             let total = password_reader_count(password_list_path.to_path_buf())?;
             progress_bar.println(format!(
-                "Using passwords file reader {:?} with {} candidates.",
+                "Using passwords dictionary {:?} with {} candidates.",
                 password_list_path, total
             ));
             total
@@ -68,12 +76,13 @@ pub fn password_finder(
 
     let mut worker_handles = Vec::with_capacity(workers);
 
-    progress_bar.println(format!("Using {} workers to test passwords", workers));
+    progress_bar.println(format!("Starting {} workers to test passwords", workers));
     for i in 1..=workers {
         let join_handle = password_checker(
             i,
             workers,
             file_path,
+            aes_info.clone(),
             strategy.clone(),
             send_found_password.clone(),
             stop_workers_signal.clone(),
@@ -101,23 +110,6 @@ pub fn password_finder(
             progress_bar.finish_and_clear();
             Ok(None)
         }
-    }
-}
-
-// validate that the zip requires a password
-fn validate_zip(file_path: &Path) -> Result<(), FinderError> {
-    let file = File::open(file_path)?;
-    let mut archive = zip::ZipArchive::new(file)?;
-    let zip_result = archive.by_index(0);
-    match zip_result {
-        Ok(_) => Err(FinderError::invalid_zip_error(
-            "the archive is not encrypted".to_string(),
-        )),
-        Err(UnsupportedArchive(msg)) if msg == "Password required to decrypt file" => Ok(()),
-        Err(e) => Err(FinderError::invalid_zip_error(format!(
-            "Unexpected error {:?}",
-            e
-        ))),
     }
 }
 
