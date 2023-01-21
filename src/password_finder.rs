@@ -131,10 +131,10 @@ mod tests {
         password_finder(path, workers, strategy)
     }
 
-    fn find_password_dictionary(
-        path: &str,
-    ) -> Result<Option<String>, FinderError> {
-        let strategy = PasswordFile(PathBuf::from("test-files/generated-passwords-lowercase.txt"));
+    fn find_password_dictionary(path: &str) -> Result<Option<String>, FinderError> {
+        let strategy = PasswordFile(PathBuf::from(
+            "test-files/generated-passwords-lowercase.txt",
+        ));
         let workers = num_cpus::get_physical();
         password_finder(path, workers, strategy)
     }
