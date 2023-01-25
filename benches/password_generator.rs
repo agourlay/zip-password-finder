@@ -10,7 +10,8 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let max_password_len = 4;
         b.iter(|| {
             let pb = ProgressBar::hidden();
-            let iterator = password_generator_iter(&charset, min_password_len, max_password_len, pb);
+            let iterator =
+                password_generator_iter(&charset, min_password_len, max_password_len, pb);
             let count = black_box(iterator.count());
             assert_eq!(count, 474552);
         })
