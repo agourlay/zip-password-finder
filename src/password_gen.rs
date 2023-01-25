@@ -134,7 +134,7 @@ impl Iterator for PasswordGenerator {
                 }
                 self.password = tmp;
             } else {
-                // increment current char
+                // hot-path: increment current char
                 let at = self
                     .charset
                     .iter()
@@ -147,20 +147,11 @@ impl Iterator for PasswordGenerator {
                 };
 
                 //eprintln!("in-place char:{}, index in charset:{}", current_char, at);
-
-                let mut tmp = Vec::with_capacity(self.current_len);
-                for (i, x) in self.password.iter().enumerate() {
-                    if i == self.current_index {
-                        tmp.push(next)
-                    } else {
-                        tmp.push(*x);
-                    }
-                }
-                self.password = tmp;
+                self.password[self.current_index] = next;
             }
         }
         self.generated_count += 1;
-        Some(self.password.iter().cloned().collect::<String>())
+        Some(self.password.iter().collect::<String>())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

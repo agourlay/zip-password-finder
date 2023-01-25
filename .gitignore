@@ -17,3 +17,4 @@ perf.data
 perf.data.old
 trace.fxt
 trace.fxt.old
+flamegraph.svg

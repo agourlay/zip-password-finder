@@ -21,3 +21,13 @@ num_cpus = "1.15.0"
 
 [profile.test]
 opt-level = 3 # needed for fast execution
+
+[dev-dependencies]
+criterion = { version = "0.4.0", features = ["html_reports"] }
+
+[profile.bench]
+debug = true
+
+[[bench]]
+name = "password_generator"
+harness = false
