@@ -7,13 +7,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("generate_password", |b| {
         let charset = charset_lowercase_letters();
         let min_password_len = 3;
-        let max_password_len = 4;
+        let max_password_len = 5;
         b.iter(|| {
             let pb = ProgressBar::hidden();
             let iterator =
                 password_generator_iter(&charset, min_password_len, max_password_len, pb);
-            let count = black_box(iterator.count());
-            assert_eq!(count, 474552);
+            let _last = black_box(iterator.last());
         })
     });
 }

@@ -86,9 +86,7 @@ impl Iterator for PasswordGenerator {
             // increase length and reset letters
             self.current_index += 1;
             self.current_len += 1;
-            self.password =
-                Vec::from_iter(std::iter::repeat(self.charset_first).take(self.current_len));
-
+            self.password = vec![self.charset_first; self.current_len];
             let possibilities = self.charset_len.pow(self.current_len as u32);
             self.progress_bar.println(
                 format!(
@@ -120,19 +118,15 @@ impl Iterator for PasswordGenerator {
 
                 //eprintln!("need reset char:{}, current-index:{}, prev:{}, next-prev:{}", current_char, self.current_index, at_prev, next_prev);
 
-                let mut tmp = Vec::with_capacity(self.current_len);
-                for (i, x) in self.password.iter().enumerate() {
-                    if i == self.current_index {
-                        tmp.push(self.charset_first)
-                    } else if i == at_prev {
-                        tmp.push(*next_prev)
-                    } else if *x == self.charset_last && i > at_prev {
-                        tmp.push(self.charset_first)
-                    } else {
-                        tmp.push(*x);
+                self.password[self.current_index] = self.charset_first;
+                self.password[at_prev] = *next_prev;
+
+                // reset all chars after previous
+                for (i, x) in self.password.iter_mut().enumerate() {
+                    if *x == self.charset_last && i > at_prev {
+                        *x = self.charset_first
                     }
                 }
-                self.password = tmp;
             } else {
                 // hot-path: increment current char
                 let at = self
@@ -151,6 +145,7 @@ impl Iterator for PasswordGenerator {
             }
         }
         self.generated_count += 1;
+        // TODO explore using a lending iterator to avoid allocation
         Some(self.password.iter().collect::<String>())
     }
 
