@@ -51,7 +51,7 @@ pub fn password_checker(
 ) -> JoinHandle<()> {
     let file_path = file_path.to_owned();
     thread::Builder::new()
-        .name(format!("worker-{}", index))
+        .name(format!("worker-{index}"))
         .spawn(move || {
             let batching_delta = worker_count as u64 * 500;
             let first_worker = index == 1;
@@ -142,7 +142,7 @@ pub fn password_checker(
                             }
                             extraction_buffer.clear();
                         }
-                        Err(e) => panic!("Unexpected error {:?}", e),
+                        Err(e) => panic!("Unexpected error {e:?}"),
                     }
                 }
                 processed_delta += 1;

@@ -64,8 +64,7 @@ pub fn password_finder(
         PasswordFile(password_list_path) => {
             let total = password_reader_count(password_list_path.to_path_buf())?;
             progress_bar.println(format!(
-                "Using passwords dictionary {:?} with {} candidates.",
-                password_list_path, total
+                "Using passwords dictionary {password_list_path:?} with {total} candidates."
             ));
             total
         }
@@ -76,7 +75,7 @@ pub fn password_finder(
 
     let mut worker_handles = Vec::with_capacity(workers);
 
-    progress_bar.println(format!("Starting {} workers to test passwords", workers));
+    progress_bar.println(format!("Starting {workers} workers to test passwords"));
     for i in 1..=workers {
         let join_handle = password_checker(
             i,

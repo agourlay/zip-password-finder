@@ -36,8 +36,7 @@ impl PasswordGenerator {
         let charset_last = *charset.last().expect("charset non empty");
 
         progress_bar.println(format!(
-            "Starting search space for password length {} ({} possibilities) ",
-            min_size, charset_len
+            "Starting search space for password length {min_size} ({charset_len} possibilities) "
         ));
         let password = vec![charset_first; min_size];
         let current_len = password.len();

@@ -47,8 +47,7 @@ pub fn validate_zip(file_path: &Path) -> Result<Option<AesInfo>, FinderError> {
             }
         }
         Err(e) => Err(FinderError::invalid_zip_error(format!(
-            "Unexpected error {:?}",
-            e
+            "Unexpected error {e:?}"
         ))),
     }
 }
