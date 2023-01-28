@@ -29,6 +29,8 @@ Using the provided binaries in https://github.com/agourlay/zip-password-finder/r
 
 Using Cargo via [crates.io](https://crates.io/crates/zip-password-finder).
 
+Warning: currently not up to date with the latest version (see [issue](https://github.com/agourlay/zip-password-finder/issues/46)). 
+
 ```bash
 cargo install zip-password-finder
 ```
