@@ -31,3 +31,7 @@ debug = true
 [[bench]]
 name = "password_generator"
 harness = false
+
+[[bench]]
+name = "password_reader"
+harness = false
