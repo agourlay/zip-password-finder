@@ -1,3 +1,4 @@
+use ahash::AHashMap;
 use indicatif::ProgressBar;
 
 pub fn password_generator_count(charset: &Vec<char>, min_size: usize, max_size: usize) -> usize {
@@ -12,6 +13,7 @@ pub fn password_generator_count(charset: &Vec<char>, min_size: usize, max_size: 
 
 struct PasswordGenerator {
     charset: Vec<char>,
+    charset_indices: AHashMap<char, usize>,
     charset_len: usize,
     charset_first: char,
     charset_last: char,
@@ -35,6 +37,13 @@ impl PasswordGenerator {
         let charset_first = *charset.first().expect("charset non empty");
         let charset_last = *charset.last().expect("charset non empty");
 
+        // pre-compute charset indices
+        let charset_indices = charset
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (*c, i))
+            .collect::<AHashMap<char, usize>>();
+
         progress_bar.println(format!(
             "Starting search space for password length {min_size} ({charset_len} possibilities) "
         ));
@@ -47,6 +56,7 @@ impl PasswordGenerator {
 
         PasswordGenerator {
             charset,
+            charset_indices,
             charset_len,
             charset_first,
             charset_last,
@@ -115,8 +125,6 @@ impl Iterator for PasswordGenerator {
                     self.charset.get(prev_index_charset + 1).unwrap()
                 };
 
-                //eprintln!("need reset char:{}, current-index:{}, prev:{}, next-prev:{}", current_char, self.current_index, at_prev, next_prev);
-
                 self.password[self.current_index] = self.charset_first;
                 self.password[at_prev] = *next_prev;
 
@@ -128,18 +136,13 @@ impl Iterator for PasswordGenerator {
                 }
             } else {
                 // hot-path: increment current char
-                let at = self
-                    .charset
-                    .iter()
-                    .position(|&c| c == current_char)
-                    .unwrap();
+                let at = *self.charset_indices.get(&current_char).unwrap();
                 let next = if at == self.charset_len - 1 {
                     self.charset_first
                 } else {
                     *self.charset.get(at + 1).unwrap()
                 };
 
-                //eprintln!("in-place char:{}, index in charset:{}", current_char, at);
                 self.password[self.current_index] = next;
             }
         }
