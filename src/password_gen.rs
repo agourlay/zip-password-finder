@@ -85,10 +85,12 @@ impl Iterator for PasswordGenerator {
             return Some(self.password.iter().collect());
         }
 
+        // end of search space
         if self.generated_count == self.total_to_generate {
             return None;
         }
 
+        // check if we need to increase the length of the password
         if self.current_len == self.current_index + 1
             && !self.password.iter().any(|&c| c != self.charset_last)
         {
@@ -135,14 +137,9 @@ impl Iterator for PasswordGenerator {
                     }
                 }
             } else {
-                // hot-path: increment current char
+                // hot-path: increment current char (not at the end of charset)
                 let at = *self.charset_indices.get(&current_char).unwrap();
-                let next = if at == self.charset_len - 1 {
-                    self.charset_first
-                } else {
-                    *self.charset.get(at + 1).unwrap()
-                };
-
+                let next = *self.charset.get(at + 1).unwrap();
                 self.password[self.current_index] = next;
             }
         }
