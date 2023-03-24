@@ -10,7 +10,7 @@ edition = "2021"
 
 [dependencies]
 zip = { version= "0.6.3", git = "https://github.com/agourlay/zip.git", branch = "zip-password-finder" } # dedicated fork
-pbkdf2 = "0.11.0" # parallel version did not help the performance
+pbkdf2 = "0.12.1" # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.5"
 crossbeam-channel = "0.5.7"
