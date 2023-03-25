@@ -1,5 +1,6 @@
 use ahash::AHashMap;
 use indicatif::ProgressBar;
+use std::rc::Rc;
 
 pub fn password_generator_count(charset: &Vec<char>, min_size: usize, max_size: usize) -> usize {
     // compute the number of passwords to generate
@@ -23,6 +24,7 @@ struct PasswordGenerator {
     generated_count: usize,
     total_to_generate: usize,
     password: Vec<char>,
+    password_buffer: Rc<String>,
     progress_bar: ProgressBar,
 }
 
@@ -48,6 +50,7 @@ impl PasswordGenerator {
             "Starting search space for password length {min_size} ({charset_len} possibilities) "
         ));
         let password = vec![charset_first; min_size];
+        let password_buffer = Rc::new(password.iter().collect());
         let current_len = password.len();
         let current_index = current_len - 1;
 
@@ -66,13 +69,14 @@ impl PasswordGenerator {
             generated_count,
             total_to_generate,
             password,
+            password_buffer,
             progress_bar,
         }
     }
 }
 
 impl Iterator for PasswordGenerator {
-    type Item = String;
+    type Item = Rc<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.password.len() > self.max_size {
@@ -82,7 +86,7 @@ impl Iterator for PasswordGenerator {
         // first password
         if self.generated_count == 0 {
             self.generated_count += 1;
-            return Some(self.password.iter().collect());
+            return Some(Rc::clone(&self.password_buffer));
         }
 
         // end of search space
@@ -144,8 +148,17 @@ impl Iterator for PasswordGenerator {
             }
         }
         self.generated_count += 1;
-        // TODO explore using a lending iterator to avoid allocation
-        Some(self.password.iter().collect::<String>())
+        // `get_mut` returns a mutable reference into the given Rc
+        // if there are no other Rc or Weak pointers to the same allocation.
+        let buf = match Rc::get_mut(&mut self.password_buffer) {
+            Some(buf) => {
+                buf.clear();
+                buf
+            }
+            None => panic!("Should not happen!"),
+        };
+        buf.extend(self.password.iter());
+        Some(Rc::clone(&self.password_buffer))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -159,7 +172,7 @@ pub fn password_generator_iter(
     min_size: usize,
     max_size: usize,
     progress_bar: ProgressBar,
-) -> impl Iterator<Item = String> {
+) -> impl Iterator<Item = Rc<String>> {
     // start generation
     progress_bar.println(format!(
         "Generating passwords with length from {} to {} for charset with length {}\n{:?}",
@@ -180,33 +193,33 @@ mod tests {
     #[test]
     fn generate_password_max_size_two() {
         let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
-        assert_eq!(iter.next(), Some("a".into()));
-        assert_eq!(iter.next(), Some("b".into()));
-        assert_eq!(iter.next(), Some("c".into()));
-        assert_eq!(iter.next(), Some("aa".into()));
-        assert_eq!(iter.next(), Some("ab".into()));
-        assert_eq!(iter.next(), Some("ac".into()));
-        assert_eq!(iter.next(), Some("ba".into()));
-        assert_eq!(iter.next(), Some("bb".into()));
-        assert_eq!(iter.next(), Some("bc".into()));
-        assert_eq!(iter.next(), Some("ca".into()));
-        assert_eq!(iter.next(), Some("cb".into()));
-        assert_eq!(iter.next(), Some("cc".into()));
+        assert_eq!(iter.next(), Some(Rc::new("a".into())));
+        assert_eq!(iter.next(), Some(Rc::new("b".into())));
+        assert_eq!(iter.next(), Some(Rc::new("c".into())));
+        assert_eq!(iter.next(), Some(Rc::new("aa".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ab".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ac".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ba".into())));
+        assert_eq!(iter.next(), Some(Rc::new("bb".into())));
+        assert_eq!(iter.next(), Some(Rc::new("bc".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ca".into())));
+        assert_eq!(iter.next(), Some(Rc::new("cb".into())));
+        assert_eq!(iter.next(), Some(Rc::new("cc".into())));
         assert_eq!(iter.next(), None);
     }
 
     #[test]
     fn generate_password_min_max_size_two() {
         let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
-        assert_eq!(iter.next(), Some("aa".into()));
-        assert_eq!(iter.next(), Some("ab".into()));
-        assert_eq!(iter.next(), Some("ac".into()));
-        assert_eq!(iter.next(), Some("ba".into()));
-        assert_eq!(iter.next(), Some("bb".into()));
-        assert_eq!(iter.next(), Some("bc".into()));
-        assert_eq!(iter.next(), Some("ca".into()));
-        assert_eq!(iter.next(), Some("cb".into()));
-        assert_eq!(iter.next(), Some("cc".into()));
+        assert_eq!(iter.next(), Some(Rc::new("aa".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ab".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ac".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ba".into())));
+        assert_eq!(iter.next(), Some(Rc::new("bb".into())));
+        assert_eq!(iter.next(), Some(Rc::new("bc".into())));
+        assert_eq!(iter.next(), Some(Rc::new("ca".into())));
+        assert_eq!(iter.next(), Some(Rc::new("cb".into())));
+        assert_eq!(iter.next(), Some(Rc::new("cc".into())));
         assert_eq!(iter.next(), None);
     }
 
@@ -224,7 +237,7 @@ mod tests {
                 eprintln!("## ACTUAL ##");
                 eprintln!("{}", l2.trim_end());
                 eprintln!("#####");
-                assert_eq!(l1, l2)
+                assert_eq!(l1, (*l2).clone());
             }
         }
     }

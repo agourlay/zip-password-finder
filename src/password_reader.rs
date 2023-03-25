@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error> {
     // compute the number of lines in the file
@@ -24,13 +25,13 @@ pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error
     Ok(total_password_count)
 }
 
-pub fn password_dictionary_reader_iter(file_path: &Path) -> impl Iterator<Item = String> {
+pub fn password_dictionary_reader_iter(file_path: &Path) -> impl Iterator<Item = Rc<String>> {
     DictionaryReader::new(file_path.to_path_buf())
 }
 
 struct DictionaryReader {
     reader: BufReader<File>,
-    line_buffer: String,
+    line_buffer: Rc<String>,
 }
 
 impl DictionaryReader {
@@ -39,30 +40,37 @@ impl DictionaryReader {
         let reader = BufReader::new(file);
         DictionaryReader {
             reader,
-            line_buffer: String::new(),
+            line_buffer: Rc::new(String::with_capacity(1024)),
         }
     }
 }
 
 impl Iterator for DictionaryReader {
-    type Item = String;
+    type Item = Rc<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            self.line_buffer.clear();
-            let res = self.reader.read_line(&mut self.line_buffer);
+            // `get_mut` returns a mutable reference into the given Rc
+            // if there are no other Rc or Weak pointers to the same allocation.
+            let buf = match Rc::get_mut(&mut self.line_buffer) {
+                Some(buf) => {
+                    buf.clear();
+                    buf
+                }
+                None => panic!("Should not happen!"),
+            };
+            let res = self.reader.read_line(buf);
             match res {
                 Ok(0) => return None,
                 Ok(_) => {
                     // cleanup line
-                    if self.line_buffer.ends_with('\n') {
-                        self.line_buffer.pop();
-                        if self.line_buffer.ends_with('\r') {
-                            self.line_buffer.pop();
+                    if buf.ends_with('\n') {
+                        buf.pop();
+                        if buf.ends_with('\r') {
+                            buf.pop();
                         }
                     }
-                    // TODO explore using a lending iterator to avoid allocation
-                    return Some(self.line_buffer.clone());
+                    return Some(Rc::clone(&self.line_buffer));
                 }
                 Err(_) => continue, // not a valid String, ignore
             }

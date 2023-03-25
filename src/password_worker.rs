@@ -8,6 +8,7 @@ use indicatif::ProgressBar;
 use sha1::Sha1;
 use std::io::{BufReader, Cursor, Read, Seek};
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -15,10 +16,10 @@ use std::{fs, thread};
 use zip::ZipArchive;
 
 pub fn filter_for_worker_index(
-    passwords: Box<dyn Iterator<Item = String>>,
+    passwords: Box<dyn Iterator<Item = Rc<String>>>,
     worker_count: usize,
     index: usize,
-) -> Box<dyn Iterator<Item = String>> {
+) -> Box<dyn Iterator<Item = Rc<String>>> {
     if worker_count > 1 {
         Box::new(passwords.enumerate().filter_map(move |(i, line)| {
             //eprintln!("thread:{} index:{} word:{} module:{}, pass:{}", index, i, line, i % worker_count, i % worker_count == index - 1);
@@ -56,7 +57,7 @@ pub fn password_checker(
             let batching_delta = worker_count as u64 * 500;
             let first_worker = index == 1;
             let progress_bar_delta = batching_delta * worker_count as u64;
-            let mut passwords_iter: Box<dyn Iterator<Item = String>> = match strategy {
+            let mut passwords_iter: Box<dyn Iterator<Item = Rc<String>>> = match strategy {
                 Strategy::GenPasswords {
                     charset,
                     min_password_len,
@@ -137,7 +138,7 @@ pub fn password_checker(
                                 Ok(_) => {
                                     // Send password and continue processing while waiting for signal
                                     send_password_found
-                                        .send(password)
+                                        .send((*password).clone())
                                         .expect("Send found password should not fail");
                                 }
                             }
@@ -176,18 +177,18 @@ mod tests {
         ));
         let box_iter = Box::new(iter);
         let mut filtered = filter_for_worker_index(box_iter, 1, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        assert_eq!(filtered.next(), Some("b".into()));
-        assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        assert_eq!(filtered.next(), Some("e".into()));
-        assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        assert_eq!(filtered.next(), Some("h".into()));
-        assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        assert_eq!(filtered.next(), Some("k".into()));
-        assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(Rc::new("a".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("b".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("c".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("d".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("e".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("f".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("g".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("h".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("i".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("j".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("k".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("l".into())));
     }
 
     #[test]
@@ -197,18 +198,12 @@ mod tests {
         ));
         let box_iter = Box::new(iter);
         let mut filtered = filter_for_worker_index(box_iter, 2, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        //assert_eq!(filtered.next(), Some("b".into()));
-        assert_eq!(filtered.next(), Some("c".into()));
-        //assert_eq!(filtered.next(), Some("d".into()));
-        assert_eq!(filtered.next(), Some("e".into()));
-        //assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        //assert_eq!(filtered.next(), Some("h".into()));
-        assert_eq!(filtered.next(), Some("i".into()));
-        //assert_eq!(filtered.next(), Some("j".into()));
-        assert_eq!(filtered.next(), Some("k".into()));
-        //assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(Rc::new("a".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("c".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("e".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("g".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("i".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("k".into())));
     }
 
     #[test]
@@ -218,18 +213,12 @@ mod tests {
         ));
         let box_iter = Box::new(iter);
         let mut filtered = filter_for_worker_index(box_iter, 2, 2);
-        //assert_eq!(filtered.next(), Some("a".into()));
-        assert_eq!(filtered.next(), Some("b".into()));
-        //assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        //assert_eq!(filtered.next(), Some("e".into()));
-        assert_eq!(filtered.next(), Some("f".into()));
-        //assert_eq!(filtered.next(), Some("g".into()));
-        assert_eq!(filtered.next(), Some("h".into()));
-        //assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        //assert_eq!(filtered.next(), Some("k".into()));
-        assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(Rc::new("b".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("d".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("f".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("h".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("j".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("l".into())));
     }
 
     #[test]
@@ -239,17 +228,9 @@ mod tests {
         ));
         let box_iter = Box::new(iter);
         let mut filtered = filter_for_worker_index(box_iter, 3, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        //assert_eq!(filtered.next(), Some("b".into()));
-        //assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        //assert_eq!(filtered.next(), Some("e".into()));
-        //assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        //assert_eq!(filtered.next(), Some("h".into()));
-        //assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        //assert_eq!(filtered.next(), Some("k".into()));
-        //assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(Rc::new("a".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("d".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("g".into())));
+        assert_eq!(filtered.next(), Some(Rc::new("j".into())));
     }
 }

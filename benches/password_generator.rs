@@ -7,12 +7,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("generate_password", |b| {
         let charset = charset_lowercase_letters();
         let min_password_len = 3;
-        let max_password_len = 5;
+        let max_password_len = 6;
         b.iter(|| {
             let pb = ProgressBar::hidden();
             let iterator =
                 password_generator_iter(&charset, min_password_len, max_password_len, pb);
-            let _last = black_box(iterator.last());
+            let mut count = 0;
+            // force the iterator to be evaluated
+            black_box(for _p in iterator {
+                count += 1;
+            });
+            assert!(count > 0);
         })
     });
 }

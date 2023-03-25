@@ -7,7 +7,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let file_path = Path::new("test-files/generated-passwords-lowercase.txt");
         b.iter(|| {
             let iterator = password_dictionary_reader_iter(file_path);
-            let _last = black_box(iterator.last());
+            let mut count = 0;
+            // force the iterator to be evaluated
+            black_box(for _p in iterator {
+                count += 1;
+            });
+            assert!(count > 0);
         })
     });
 }
