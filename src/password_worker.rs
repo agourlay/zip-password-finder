@@ -113,7 +113,8 @@ pub fn password_checker(
                 // process AES KEY
                 if derived_key_len != 0 {
                     // use PBKDF2 with HMAC-Sha1 to derive the key
-                    pbkdf2::pbkdf2::<Hmac<Sha1>>(password_bytes, &salt, 1000, &mut derived_key).expect("PBKDF2 should not fail");
+                    pbkdf2::pbkdf2::<Hmac<Sha1>>(password_bytes, &salt, 1000, &mut derived_key)
+                        .expect("PBKDF2 should not fail");
                     let pwd_verify = &derived_key[derived_key_len - 2..];
                     // the last 2 bytes should equal the password verification value
                     potential_match = key == pwd_verify;
