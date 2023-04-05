@@ -23,6 +23,7 @@ pub enum Strategy {
 pub fn password_finder(
     zip_path: &str,
     workers: usize,
+    file_number: usize,
     strategy: Strategy,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
@@ -38,7 +39,7 @@ pub fn password_finder(
     progress_bar.set_draw_target(draw_target);
 
     // Fail early if the zip file is not valid
-    let aes_info = validate_zip(file_path)?;
+    let aes_info = validate_zip(file_path, file_number)?;
     match &aes_info {
         Some(aes_info) => progress_bar.println(format!(
             "Archive is encrypted with AES{} - expect a long wait time",
@@ -81,6 +82,7 @@ pub fn password_finder(
             i,
             workers,
             file_path,
+            file_number,
             aes_info.clone(),
             strategy.clone(),
             send_found_password.clone(),
@@ -127,7 +129,8 @@ mod tests {
             max_password_len,
         };
         let workers = num_cpus::get_physical();
-        password_finder(path, workers, strategy)
+        let file_number = 0;
+        password_finder(path, workers, file_number, strategy)
     }
 
     fn find_password_dictionary(path: &str) -> Result<Option<String>, FinderError> {
@@ -135,7 +138,8 @@ mod tests {
             "test-files/generated-passwords-lowercase.txt",
         ));
         let workers = num_cpus::get_physical();
-        password_finder(path, workers, strategy)
+        let file_number = 0;
+        password_finder(path, workers, file_number, strategy)
     }
 
     #[test]

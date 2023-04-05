@@ -33,6 +33,7 @@ fn main_result() -> Result<(), FinderError> {
         charset_choice,
         min_password_len,
         max_password_len,
+        file_number,
         password_dictionary,
     } = get_args()?;
 
@@ -52,7 +53,7 @@ fn main_result() -> Result<(), FinderError> {
     };
 
     let workers = workers.unwrap_or_else(num_cpus::get_physical);
-    let password = password_finder(&input_file, workers, strategy)?;
+    let password = password_finder(&input_file, workers, file_number, strategy)?;
     match password {
         Some(password) => println!("Password found: {password}"),
         None => println!("Password not found"),

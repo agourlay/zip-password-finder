@@ -26,11 +26,11 @@ impl AesInfo {
 }
 
 // validate that the zip requires a password
-pub fn validate_zip(file_path: &Path) -> Result<Option<AesInfo>, FinderError> {
+pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesInfo>, FinderError> {
     let file = File::open(file_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
-    let aes_data = archive.get_aes_key_and_salt(0);
-    let zip_result = archive.by_index(0);
+    let aes_data = archive.get_aes_key_and_salt(file_number);
+    let zip_result = archive.by_index(file_number);
     match zip_result {
         Ok(_) => Err(FinderError::invalid_zip_error(
             "the archive is not encrypted".to_string(),
