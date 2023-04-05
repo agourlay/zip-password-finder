@@ -43,6 +43,7 @@ pub fn password_checker(
     index: usize,
     worker_count: usize,
     file_path: &Path,
+    file_number: usize,
     aes_info: Option<AesInfo>,
     strategy: Strategy,
     send_password_found: Sender<String>,
@@ -126,7 +127,7 @@ pub fn password_checker(
                     // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
                     // There are many passwords out there that will also pass the validity checks we are able to perform.
                     // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
-                    let res = archive.by_index_decrypt(0, password_bytes);
+                    let res = archive.by_index_decrypt(file_number, password_bytes);
                     match res {
                         Ok(Err(_)) => (), // invalid password
                         Ok(Ok(mut zip)) => {

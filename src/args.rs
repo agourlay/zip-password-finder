@@ -63,6 +63,15 @@ fn command() -> clap::Command {
                 .default_value("10")
                 .required(false),
         )
+        .arg(
+            Arg::new("fileNumber")
+                .value_parser(value_parser!(usize))
+                .help("file number in the zip archive")
+                .long("fileNumber")
+                .num_args(1)
+                .default_value("0")
+                .required(false),
+        )
 }
 
 pub struct Arguments {
@@ -71,6 +80,7 @@ pub struct Arguments {
     pub charset_choice: CharsetChoice,
     pub min_password_len: usize,
     pub max_password_len: usize,
+    pub file_number: usize,
     pub password_dictionary: Option<String>,
 }
 
@@ -123,12 +133,15 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         });
     }
 
+    let file_number: &usize = matches.get_one("fileNumber").expect("impossible");
+
     Ok(Arguments {
         input_file: input_file.clone(),
         workers: workers.cloned(),
         charset_choice,
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,
+        file_number: *file_number,
         password_dictionary: password_dictionary.cloned(),
     })
 }
