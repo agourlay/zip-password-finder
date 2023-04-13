@@ -14,7 +14,7 @@ pbkdf2 = "0.12.1" # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.5"
 crossbeam-channel = "0.5.8"
-clap = { version = "4.2.1", features = ["cargo"] }
+clap = { version = "4.2.2", features = ["cargo"] }
 indicatif = "0.17.3"
 thiserror = "1.0.40"
 num_cpus = "1.15.0"
