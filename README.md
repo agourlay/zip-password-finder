@@ -3,7 +3,9 @@
 
 `zip-password-finder` is a tool to find the password of protected zip files.
 
-The initial design of this tool is described in details in the [following blog article](https://agourlay.github.io/brute-forcing-protected-zip-rust/) but the architecture has changed since it was published.
+The design of this tool is described in details in the following blog articles:
+- [Brute forcing protected ZIP archives in Rust](https://agourlay.github.io/brute-forcing-protected-zip-rust/)
+- [Follow up on cracking ZIP archives in Rust](https://agourlay.github.io/follow-up-cracking-zip-rust/)
 
 ## Features
 
@@ -64,16 +66,20 @@ Options:
           minimum password length [default: 1]
       --maxPasswordLen <maxPasswordLen>
           maximum password length [default: 10]
+      --fileNumber <fileNumber>
+          file number in the zip archive [default: 0]
   -h, --help
-          Print help information
+          Print help
   -V, --version
-          Print version information
+          Print version
 ```
 
 ## Performance
 
-ZipCrypto is roughly a 1000 times cheaper than AES to crack with brute force.
-
 For AES make sure to use a CPU with `SHA` instructions (Intel Sandy Bridge or newer, AMD Bulldozer or newer) to get the best performance.
+
+Native builds tend to perform better in general.
+
+```RUSTFLAGS="-C target-cpu=native" cargo build --release```
 
 In general this tool is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
