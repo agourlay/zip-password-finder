@@ -1,48 +1,15 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum CharsetChoice {
-    Basic,
-    Easy,
-    Medium,
-    Hard,
-}
-
-impl CharsetChoice {
-    pub fn to_charset(self) -> Vec<char> {
-        match self {
-            CharsetChoice::Basic => charset_lowercase_letters(),
-            CharsetChoice::Easy => {
-                vec![charset_lowercase_letters(), charset_uppercase_letters()].concat()
-            }
-            CharsetChoice::Medium => vec![
-                charset_lowercase_letters(),
-                charset_uppercase_letters(),
-                charset_digits(),
-            ]
-            .concat(),
-            CharsetChoice::Hard => vec![
-                charset_lowercase_letters(),
-                charset_uppercase_letters(),
-                charset_digits(),
-                charset_punctuations(),
-            ]
-            .concat(),
+pub fn to_charset(charset_choice: &str) -> Vec<char> {
+    let mut charset: Vec<char> = vec![];
+    for symbol in charset_choice.chars(){
+        match symbol{
+            'l' => charset.append(&mut charset_lowercase_letters()),
+            'u' => charset.append(&mut charset_uppercase_letters()),
+            'd' => charset.append(&mut charset_digits()),
+            's' => charset.append(&mut charset_punctuations()),
+            _ => panic!("Unrecognized character set option {symbol}"),
         }
     }
-}
-
-impl clap::ValueEnum for CharsetChoice {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Basic, Self::Easy, Self::Medium, Self::Hard]
-    }
-
-    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            Self::Basic => Some(clap::builder::PossibleValue::new("basic")),
-            Self::Easy => Some(clap::builder::PossibleValue::new("easy")),
-            Self::Medium => Some(clap::builder::PossibleValue::new("medium")),
-            Self::Hard => Some(clap::builder::PossibleValue::new("hard")),
-        }
-    }
+    charset
 }
 
 pub fn charset_lowercase_letters() -> Vec<char> {

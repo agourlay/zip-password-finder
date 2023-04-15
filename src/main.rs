@@ -43,7 +43,7 @@ fn main_result() -> Result<(), FinderError> {
             PasswordFile(path.to_path_buf())
         }
         None => {
-            let charset = charset_choice.to_charset();
+            let charset = charsets::to_charset(&charset_choice);
             GenPasswords {
                 charset,
                 min_password_len,

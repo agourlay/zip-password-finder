@@ -1,7 +1,5 @@
-use crate::charsets::CharsetChoice;
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
-use clap::builder::EnumValueParser;
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use clap::{Arg, Command};
 use std::path::Path;
@@ -41,8 +39,7 @@ fn command() -> clap::Command {
                 .help("charset to use to generate password")
                 .long("charset")
                 .short('c')
-                .value_parser(EnumValueParser::<CharsetChoice>::new())
-                .default_value("medium")
+                .default_value("lud")
                 .required(false),
         )
         .arg(
@@ -77,7 +74,7 @@ fn command() -> clap::Command {
 pub struct Arguments {
     pub input_file: String,
     pub workers: Option<usize>,
-    pub charset_choice: CharsetChoice,
+    pub charset_choice: String,
     pub min_password_len: usize,
     pub max_password_len: usize,
     pub file_number: usize,
@@ -104,7 +101,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         }
     }
 
-    let charset_choice: CharsetChoice = *matches.get_one("charset").expect("impossible");
+    let charset_choice: &String = matches.get_one("charset").expect("impossible");
 
     let workers: Option<&usize> = matches.try_get_one("workers")?;
     if workers == Some(&0) {
@@ -138,7 +135,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     Ok(Arguments {
         input_file: input_file.clone(),
         workers: workers.cloned(),
-        charset_choice,
+        charset_choice: charset_choice.clone(),
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,
         file_number: *file_number,

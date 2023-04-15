@@ -117,14 +117,14 @@ pub fn password_finder(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::charsets::CharsetChoice;
+    use crate::charsets;
 
     fn find_password_gen(
         path: &str,
         max_password_len: usize,
     ) -> Result<Option<String>, FinderError> {
         let strategy = GenPasswords {
-            charset: CharsetChoice::Basic.to_charset(),
+            charset: charsets::to_charset("l"),
             min_password_len: 1,
             max_password_len,
         };
