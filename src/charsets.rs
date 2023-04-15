@@ -1,4 +1,7 @@
-pub fn to_charset(charset_choice: &str) -> Vec<char> {
+use crate::finder_errors::FinderError;
+use crate::finder_errors::FinderError::CliArgumentError;
+
+pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
     let mut charset: Vec<char> = vec![];
     for symbol in charset_choice.chars(){
         match symbol{
@@ -6,10 +9,10 @@ pub fn to_charset(charset_choice: &str) -> Vec<char> {
             'u' => charset.append(&mut charset_uppercase_letters()),
             'd' => charset.append(&mut charset_digits()),
             's' => charset.append(&mut charset_punctuations()),
-            _ => panic!("Unrecognized character set option {symbol}"),
+            _ =>  return Err(CliArgumentError {message: "Unknown charset option".to_string()}),
         }
     }
-    charset
+    Ok(charset)
 }
 
 pub fn charset_lowercase_letters() -> Vec<char> {
