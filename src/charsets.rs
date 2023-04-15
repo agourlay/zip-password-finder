@@ -9,6 +9,8 @@ pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
             'u' => charset.append(&mut charset_uppercase_letters()),
             'd' => charset.append(&mut charset_digits()),
             's' => charset.append(&mut charset_punctuations()),
+            'h' => charset.append(&mut charset_lowercase_hex()),
+            'H' => charset.append(&mut charset_uppercase_hex()),
             _ =>  return Err(CliArgumentError {message: "Unknown charset option".to_string()}),
         }
     }
@@ -38,4 +40,12 @@ pub fn charset_punctuations() -> Vec<char> {
         ' ', '-', '=', '!', '@', '#', '$', '%', '^', '&', '*', '_', '+', '<', '>', '/', '?', '.',
         ';', ':', '{', '}',
     ]
+}
+
+pub fn charset_lowercase_hex() -> Vec<char> {
+    vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
+}
+
+pub fn charset_uppercase_hex() -> Vec<char> {
+    vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
 }
