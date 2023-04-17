@@ -3,15 +3,19 @@ use crate::finder_errors::FinderError::CliArgumentError;
 
 pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
     let mut charset: Vec<char> = vec![];
-    for symbol in charset_choice.chars(){
-        match symbol{
+    for symbol in charset_choice.chars() {
+        match symbol {
             'l' => charset.append(&mut charset_lowercase_letters()),
             'u' => charset.append(&mut charset_uppercase_letters()),
             'd' => charset.append(&mut charset_digits()),
             's' => charset.append(&mut charset_symbols()),
             'h' => charset.append(&mut charset_lowercase_hex()),
             'H' => charset.append(&mut charset_uppercase_hex()),
-            _ =>  return Err(CliArgumentError {message: "Unknown charset option".to_string()}),
+            _ => {
+                return Err(CliArgumentError {
+                    message: "Unknown charset option".to_string(),
+                })
+            }
         }
     }
     Ok(charset)
@@ -38,14 +42,18 @@ pub fn charset_digits() -> Vec<char> {
 pub fn charset_symbols() -> Vec<char> {
     vec![
         ' ', '-', '=', '!', '@', '#', '$', '%', '^', '&', '*', '_', '+', '<', '>', '/', '?', '.',
-        ';', ':', '{', '}', '"', '\'', '(', ')', ',', '[', ']', '\\', '`','|', '~',  
+        ';', ':', '{', '}', '"', '\'', '(', ')', ',', '[', ']', '\\', '`', '|', '~',
     ]
 }
 
 pub fn charset_lowercase_hex() -> Vec<char> {
-    vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
+    vec![
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+    ]
 }
 
 pub fn charset_uppercase_hex() -> Vec<char> {
-    vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
+    vec![
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+    ]
 }
