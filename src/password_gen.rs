@@ -162,11 +162,11 @@ pub fn password_generator_iter(
 ) -> impl Iterator<Item = String> {
     // start generation
     progress_bar.println(format!(
-        "Generating passwords with length from {} to {} for charset with length {}\n{:?}",
+        "Generating passwords with length from {} to {} for charset with length {}\n{}",
         min_size,
         max_size,
         charset.len(),
-        charset
+        charset.into_iter().collect::<String>()
     ));
     PasswordGenerator::new(charset.clone(), min_size, max_size, progress_bar)
 }
