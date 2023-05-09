@@ -1,9 +1,11 @@
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
+use std::collections::HashSet;
 
 pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
+    let charset_unique: HashSet<char> = charset_choice.chars().collect();
     let mut charset: Vec<char> = vec![];
-    for symbol in charset_choice.chars() {
+    for symbol in charset_unique {
         match symbol {
             'l' => charset.append(&mut charset_lowercase_letters()),
             'u' => charset.append(&mut charset_uppercase_letters()),
