@@ -1,48 +1,26 @@
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum CharsetChoice {
-    Basic,
-    Easy,
-    Medium,
-    Hard,
-}
+use crate::finder_errors::FinderError;
+use crate::finder_errors::FinderError::CliArgumentError;
+use std::collections::HashSet;
 
-impl CharsetChoice {
-    pub fn to_charset(self) -> Vec<char> {
-        match self {
-            CharsetChoice::Basic => charset_lowercase_letters(),
-            CharsetChoice::Easy => {
-                vec![charset_lowercase_letters(), charset_uppercase_letters()].concat()
+pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
+    let charset_unique: HashSet<char> = charset_choice.chars().collect();
+    let mut charset: Vec<char> = vec![];
+    for symbol in charset_unique {
+        match symbol {
+            'l' => charset.append(&mut charset_lowercase_letters()),
+            'u' => charset.append(&mut charset_uppercase_letters()),
+            'd' => charset.append(&mut charset_digits()),
+            's' => charset.append(&mut charset_symbols()),
+            'h' => charset.append(&mut charset_lowercase_hex()),
+            'H' => charset.append(&mut charset_uppercase_hex()),
+            _ => {
+                return Err(CliArgumentError {
+                    message: "Unknown charset option".to_string(),
+                })
             }
-            CharsetChoice::Medium => vec![
-                charset_lowercase_letters(),
-                charset_uppercase_letters(),
-                charset_digits(),
-            ]
-            .concat(),
-            CharsetChoice::Hard => vec![
-                charset_lowercase_letters(),
-                charset_uppercase_letters(),
-                charset_digits(),
-                charset_punctuations(),
-            ]
-            .concat(),
         }
     }
-}
-
-impl clap::ValueEnum for CharsetChoice {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[Self::Basic, Self::Easy, Self::Medium, Self::Hard]
-    }
-
-    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-        match self {
-            Self::Basic => Some(clap::builder::PossibleValue::new("basic")),
-            Self::Easy => Some(clap::builder::PossibleValue::new("easy")),
-            Self::Medium => Some(clap::builder::PossibleValue::new("medium")),
-            Self::Hard => Some(clap::builder::PossibleValue::new("hard")),
-        }
-    }
+    Ok(charset)
 }
 
 pub fn charset_lowercase_letters() -> Vec<char> {
@@ -63,9 +41,21 @@ pub fn charset_digits() -> Vec<char> {
     vec!['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
 }
 
-pub fn charset_punctuations() -> Vec<char> {
+pub fn charset_symbols() -> Vec<char> {
     vec![
         ' ', '-', '=', '!', '@', '#', '$', '%', '^', '&', '*', '_', '+', '<', '>', '/', '?', '.',
-        ';', ':', '{', '}',
+        ';', ':', '{', '}', '"', '\'', '(', ')', ',', '[', ']', '\\', '`', '|', '~',
+    ]
+}
+
+pub fn charset_lowercase_hex() -> Vec<char> {
+    vec![
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+    ]
+}
+
+pub fn charset_uppercase_hex() -> Vec<char> {
+    vec![
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
     ]
 }

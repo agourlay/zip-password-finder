@@ -15,12 +15,14 @@ The design of this tool is described in details in the following blog articles:
 - Brute force to generate all passwords for a given charset and a password length range
 
 The available charsets for the password generation are:
-
-- basic: lowercase letters
-- easy: basic + upper case letters
-- medium: easy + digits
-- hard: medium + punctuations and extras
-
+```
+  l | abcdefghijklmnopqrstuvwxyz [a-z]
+  u | ABCDEFGHIJKLMNOPQRSTUVWXYZ [A-Z]
+  d | 0123456789                 [0-9]
+  h | 0123456789abcdef           [0-9a-f]
+  H | 0123456789ABCDEF           [0-9A-F]
+  s | «space»!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+```
 ## Installation
 
 ### Releases
@@ -61,7 +63,7 @@ Options:
   -p, --passwordDictionary <passwordDictionary>
           path to a password dictionary file
   -c, --charset <charset>
-          charset to use to generate password [default: medium] [possible values: basic, easy, medium, hard]
+          charset to use to generate password [default: lud] [possible values: l, u, d, h, H, s]
       --minPasswordLen <minPasswordLen>
           minimum password length [default: 1]
       --maxPasswordLen <maxPasswordLen>

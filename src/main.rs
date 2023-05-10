@@ -8,6 +8,7 @@ mod password_worker;
 mod zip_utils;
 
 use crate::args::{get_args, Arguments};
+use crate::charsets::to_charset;
 use crate::finder_errors::FinderError;
 use crate::password_finder::password_finder;
 use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
@@ -43,7 +44,7 @@ fn main_result() -> Result<(), FinderError> {
             PasswordFile(path.to_path_buf())
         }
         None => {
-            let charset = charset_choice.to_charset();
+            let charset = to_charset(&charset_choice)?;
             GenPasswords {
                 charset,
                 min_password_len,
