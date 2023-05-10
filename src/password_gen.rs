@@ -166,7 +166,7 @@ pub fn password_generator_iter(
         min_size,
         max_size,
         charset.len(),
-        charset.into_iter().collect::<String>()
+        charset.iter().collect::<String>()
     ));
     PasswordGenerator::new(charset.clone(), min_size, max_size, progress_bar)
 }
