@@ -1,11 +1,9 @@
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
-use std::collections::HashSet;
 
 pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
-    let charset_unique: HashSet<char> = charset_choice.chars().collect();
     let mut charset: Vec<char> = vec![];
-    for symbol in charset_unique {
+    for symbol in charset_choice.chars() {
         match symbol {
             'l' => charset.append(&mut charset_lowercase_letters()),
             'u' => charset.append(&mut charset_uppercase_letters()),
@@ -13,13 +11,16 @@ pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
             's' => charset.append(&mut charset_symbols()),
             'h' => charset.append(&mut charset_lowercase_hex()),
             'H' => charset.append(&mut charset_uppercase_hex()),
-            _ => {
+            other => {
                 return Err(CliArgumentError {
-                    message: "Unknown charset option".to_string(),
+                    message: format!("Unknown charset option '{}'", other),
                 })
             }
         }
     }
+    // make sure the charset does not contain duplicates
+    charset.sort();
+    charset.dedup();
     Ok(charset)
 }
 
@@ -43,8 +44,8 @@ pub fn charset_digits() -> Vec<char> {
 
 pub fn charset_symbols() -> Vec<char> {
     vec![
-        ' ', '-', '=', '!', '@', '#', '$', '%', '^', '&', '*', '_', '+', '<', '>', '/', '?', '.',
-        ';', ':', '{', '}', '"', '\'', '(', ')', ',', '[', ']', '\\', '`', '|', '~',
+        ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';',
+        '<', '=', '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~',
     ]
 }
 
@@ -58,4 +59,45 @@ pub fn charset_uppercase_hex() -> Vec<char> {
     vec![
         '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_charset() {
+        let charset = to_charset("l").unwrap();
+        assert_eq!(charset, charset_lowercase_letters());
+        let charset = to_charset("u").unwrap();
+        assert_eq!(charset, charset_uppercase_letters());
+        let charset = to_charset("d").unwrap();
+        assert_eq!(charset, charset_digits());
+        let charset = to_charset("s").unwrap();
+        assert_eq!(charset, charset_symbols());
+        let charset = to_charset("h").unwrap();
+        assert_eq!(charset, charset_lowercase_hex());
+        let charset = to_charset("H").unwrap();
+        assert_eq!(charset, charset_uppercase_hex());
+    }
+
+    #[test]
+    fn test_combined_charsets() {
+        let charset = to_charset("lu").unwrap();
+        assert_eq!(
+            charset,
+            [charset_uppercase_letters(), charset_lowercase_letters(),].concat()
+        );
+
+        let charset = to_charset("lud").unwrap();
+        assert_eq!(
+            charset,
+            [
+                charset_digits(),
+                charset_uppercase_letters(),
+                charset_lowercase_letters(),
+            ]
+            .concat()
+        );
+    }
 }
