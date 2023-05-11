@@ -1263,8 +1263,8 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 
 [[package]]
 name = "zip"
-version = "0.6.4"
-source = "git+https://github.com/agourlay/zip.git?branch=zip-password-finder#1ac1c6821fefa0661f0c89165fa9cae17331d355"
+version = "0.6.5"
+source = "git+https://github.com/agourlay/zip.git?branch=zip-password-finder#7c178cf3d18fe0c6e85ed13fa601d1b307119fa1"
 dependencies = [
  "aes",
  "byteorder",
