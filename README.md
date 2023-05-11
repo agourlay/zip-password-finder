@@ -15,6 +15,7 @@ The design of this tool is described in details in the following blog articles:
 - Brute force to generate all passwords for a given charset and a password length range
 
 The available charsets for the password generation are:
+
 ```
   l | abcdefghijklmnopqrstuvwxyz [a-z]
   u | ABCDEFGHIJKLMNOPQRSTUVWXYZ [A-Z]
