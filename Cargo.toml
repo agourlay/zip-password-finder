@@ -17,7 +17,7 @@ crossbeam-channel = "0.5.8"
 clap = { version = "4.3.9", features = ["cargo"] }
 indicatif = "0.17.5"
 thiserror = "1.0.40"
-num_cpus = "1.15.0"
+num_cpus = "1.16.0"
 ahash = "0.8.3"
 
 [profile.test]
