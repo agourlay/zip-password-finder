@@ -14,7 +14,7 @@ jobs:
     name: Rust CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check code formatting
         run: cargo fmt --all -- --check
       - name: Build
