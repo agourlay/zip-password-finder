@@ -15,7 +15,7 @@ hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
 crossbeam-channel = "0.5.8"
 clap = { version = "4.4.4", features = ["cargo"] }
-indicatif = "0.17.6"
+indicatif = "0.17.7"
 thiserror = "1.0.48"
 num_cpus = "1.16.0"
 ahash = "0.8.3"
