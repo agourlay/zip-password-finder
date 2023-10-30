@@ -35,7 +35,7 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesIn
         Ok(_) => Err(FinderError::invalid_zip_error(
             "the archive is not encrypted".to_string(),
         )),
-        Err(UnsupportedArchive(msg)) if msg == "Password required to decrypt file" => {
+        Err(UnsupportedArchive("Password required to decrypt file")) => {
             if let Some((aes_mode, key_, salt_)) = aes_data.expect("Archive validated before-hand")
             {
                 let aes_key_length = aes_mode.key_length();
