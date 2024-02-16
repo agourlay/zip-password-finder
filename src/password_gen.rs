@@ -1,7 +1,7 @@
 use ahash::AHashMap;
 use indicatif::ProgressBar;
 
-pub fn password_generator_count(charset: &Vec<char>, min_size: usize, max_size: usize) -> usize {
+pub fn password_generator_count(charset: &[char], min_size: usize, max_size: usize) -> usize {
     // compute the number of passwords to generate
     let charset_len = charset.len();
     let mut total_password_count = 0;
@@ -155,7 +155,7 @@ impl Iterator for PasswordGenerator {
 }
 
 pub fn password_generator_iter(
-    charset: &Vec<char>,
+    charset: &[char],
     min_size: usize,
     max_size: usize,
     progress_bar: ProgressBar,
@@ -168,7 +168,7 @@ pub fn password_generator_iter(
         charset.len(),
         charset.iter().collect::<String>()
     ));
-    PasswordGenerator::new(charset.clone(), min_size, max_size, progress_bar)
+    PasswordGenerator::new(charset.to_vec(), min_size, max_size, progress_bar)
 }
 
 #[cfg(test)]
