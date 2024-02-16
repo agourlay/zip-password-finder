@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn generate_password_max_size_two() {
-        let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("a".into()));
         assert_eq!(iter.next(), Some("b".into()));
         assert_eq!(iter.next(), Some("c".into()));
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn generate_password_min_max_size_two() {
-        let mut iter = password_generator_iter(&vec!['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("aa".into()));
         assert_eq!(iter.next(), Some("ab".into()));
         assert_eq!(iter.next(), Some("ac".into()));
