@@ -18,7 +18,7 @@ clap = { version = "4.5.1", features = ["cargo"] }
 indicatif = "0.17.8"
 thiserror = "1.0.57"
 num_cpus = "1.16.0"
-ahash = "0.8.10"
+ahash = "0.8.11"
 
 [profile.test]
 opt-level = 3 # needed for fast execution
