@@ -1125,7 +1125,7 @@ dependencies = [
 [[package]]
 name = "zip"
 version = "0.6.6"
-source = "git+https://github.com/agourlay/zip.git?branch=zip-password-finder#3dd8087a6d43ff81756eb09a5c637da700430a9b"
+source = "git+https://github.com/agourlay/zip.git?branch=zip-password-finder#55d59deb4b8211d0164ffcba72abc506e888b2a7"
 dependencies = [
  "aes",
  "byteorder",
