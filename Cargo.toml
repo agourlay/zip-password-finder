@@ -15,7 +15,7 @@ zip = { version= "0.6.6", git = "https://github.com/agourlay/zip.git", branch = 
 pbkdf2 = "0.12.2" # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
-crossbeam-channel = "0.5.12"
+crossbeam-channel = "0.5.13"
 clap = { version = "4.5.4", features = ["cargo"] }
 indicatif = "0.17.8"
 thiserror = "1.0.61"
