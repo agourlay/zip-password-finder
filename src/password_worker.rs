@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::{fs, thread};
+use zip::result::ZipError;
 use zip::ZipArchive;
 
 pub fn filter_for_worker_index(
@@ -129,8 +130,9 @@ pub fn password_checker(
                     // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
                     let res = archive.by_index_decrypt(file_number, password_bytes);
                     match res {
-                        Ok(Err(_)) => (), // invalid password
-                        Ok(Ok(mut zip)) => {
+                        Err(ZipError::InvalidPassword) => (), // invalid password
+                        Err(e) => panic!("Unexpected error {e:?}"),
+                        Ok(mut zip) => {
                             // Validate password by reading the zip file to make sure it is not merely a hash collision.
                             extraction_buffer.reserve(zip.size() as usize);
                             match zip.read_to_end(&mut extraction_buffer) {
@@ -144,7 +146,6 @@ pub fn password_checker(
                             }
                             extraction_buffer.clear();
                         }
-                        Err(e) => panic!("Unexpected error {e:?}"),
                     }
                 }
                 processed_delta += 1;
