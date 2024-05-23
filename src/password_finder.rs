@@ -52,7 +52,7 @@ pub fn password_finder(
     let (send_found_password, receive_found_password): (Sender<String>, Receiver<String>) =
         crossbeam_channel::bounded(1);
 
-    // stop signals to shutdown threads
+    // stop signals to shut down threads
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
     let stop_gen_signal = Arc::new(AtomicBool::new(false));
 

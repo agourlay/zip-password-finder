@@ -4,7 +4,7 @@ use clap::{crate_authors, crate_description, crate_name, crate_version, value_pa
 use clap::{Arg, Command};
 use std::path::Path;
 
-fn command() -> clap::Command {
+fn command() -> Command {
     Command::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!("\n"))

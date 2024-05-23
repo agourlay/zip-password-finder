@@ -22,13 +22,13 @@ impl FinderError {
     }
 }
 
-impl std::convert::From<std::io::Error> for FinderError {
+impl From<std::io::Error> for FinderError {
     fn from(e: std::io::Error) -> Self {
         FinderError::StdIoError { e }
     }
 }
 
-impl std::convert::From<ZipError> for FinderError {
+impl From<ZipError> for FinderError {
     fn from(e: ZipError) -> Self {
         FinderError::InvalidZip {
             message: format!("{e}"),
@@ -36,13 +36,13 @@ impl std::convert::From<ZipError> for FinderError {
     }
 }
 
-impl std::convert::From<clap::Error> for FinderError {
+impl From<clap::Error> for FinderError {
     fn from(e: clap::Error) -> Self {
         FinderError::ClapError { e }
     }
 }
 
-impl std::convert::From<clap::parser::MatchesError> for FinderError {
+impl From<clap::parser::MatchesError> for FinderError {
     fn from(e: clap::parser::MatchesError) -> Self {
         FinderError::ClapMatchError {
             message: format!("{e}"),

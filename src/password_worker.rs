@@ -99,7 +99,7 @@ pub fn password_checker(
                 Box::new(BufReader::new(file))
             } else {
                 let zip_file = fs::read(file_path).expect("File should exist");
-                // in case of ZipCrypto, we load the file in memory as it will be access on each password
+                // in case of ZipCrypto, we load the file in memory as it will be accessed on each password
                 Box::new(Cursor::new(zip_file))
             };
 
