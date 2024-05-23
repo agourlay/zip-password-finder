@@ -6,19 +6,19 @@ use zip::result::ZipError::UnsupportedArchive;
 #[derive(Clone, Debug)]
 pub struct AesInfo {
     pub aes_key_length: usize,
-    pub key: Vec<u8>,
+    pub verification_value: [u8; 2],
     pub derived_key_length: usize,
     pub salt: Vec<u8>,
 }
 
 impl AesInfo {
-    pub fn new(aes_key_length: usize, key: Vec<u8>, salt: Vec<u8>) -> Self {
+    pub fn new(aes_key_length: usize, verification_value: [u8; 2], salt: Vec<u8>) -> Self {
         // derive a key from the password and salt
         // the length depends on the aes key length
         let derived_key_length = 2 * aes_key_length + 2;
         AesInfo {
             aes_key_length,
-            key,
+            verification_value,
             derived_key_length,
             salt,
         }
@@ -36,12 +36,11 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesIn
             "the archive is not encrypted".to_string(),
         )),
         Err(UnsupportedArchive("Password required to decrypt file")) => {
-            if let Some((aes_mode, key_, salt_)) = aes_data.expect("Archive validated before-hand")
-            {
-                let aes_key_length = aes_mode.key_length();
-                let key = key_;
-                let salt = salt_;
-                Ok(Some(AesInfo::new(aes_key_length, key, salt)))
+            if let Some(aes_zip_info) = aes_data.expect("Archive validated before-hand") {
+                let aes_key_length = aes_zip_info.aes_mode.key_length();
+                let verification_value = aes_zip_info.verification_value;
+                let salt = aes_zip_info.salt;
+                Ok(Some(AesInfo::new(aes_key_length, verification_value, salt)))
             } else {
                 Ok(None)
             }

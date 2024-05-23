@@ -86,12 +86,12 @@ pub fn password_checker(
             let mut derived_key_len = 0;
             let mut derived_key: Vec<u8> = Vec::new();
             let mut salt: Vec<u8> = Vec::new();
-            let mut key: Vec<u8> = Vec::new();
+            let mut verification_value: [u8; 2] = [0; 2];
 
             // setup file reader depending on the encryption method
             let reader: Box<dyn ZipReader> = if let Some(aes_info) = aes_info {
                 salt = aes_info.salt;
-                key = aes_info.key;
+                verification_value = aes_info.verification_value;
                 derived_key_len = aes_info.derived_key_length;
                 derived_key = vec![0; derived_key_len];
                 let file = fs::File::open(file_path).expect("File should exist");
@@ -119,7 +119,7 @@ pub fn password_checker(
                         .expect("PBKDF2 should not fail");
                     let pwd_verify = &derived_key[derived_key_len - 2..];
                     // the last 2 bytes should equal the password verification value
-                    potential_match = key == pwd_verify;
+                    potential_match = verification_value == pwd_verify;
                 }
 
                 // ZipCrypto falls back directly here and will recompute its key for each password
