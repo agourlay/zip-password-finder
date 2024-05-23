@@ -29,7 +29,7 @@ impl AesInfo {
 pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesInfo>, FinderError> {
     let file = File::open(file_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
-    let aes_data = archive.get_aes_key_and_salt(file_number);
+    let aes_data = archive.get_aes_verification_key_and_salt(file_number);
     let zip_result = archive.by_index(file_number);
     match zip_result {
         Ok(_) => Err(FinderError::invalid_zip_error(
