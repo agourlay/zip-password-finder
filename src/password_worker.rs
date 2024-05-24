@@ -137,7 +137,7 @@ pub fn password_checker(
                             extraction_buffer.reserve(zip.size() as usize);
                             match zip.read_to_end(&mut extraction_buffer) {
                                 Err(_) => (), // password collision - continue
-                                Ok(_) => {
+                                Ok(_read) => {
                                     // Send password and continue processing while waiting for signal
                                     send_password_found
                                         .send(password)

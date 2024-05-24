@@ -42,11 +42,11 @@ pub fn password_finder(
     let aes_info = validate_zip(file_path, file_number)?;
     match &aes_info {
         Some(aes_info) => progress_bar.println(format!(
-            "Archive is encrypted with AES{} - expect a long wait time",
+            "Archive encrypted with AES{} - expect a long wait time",
             aes_info.aes_key_length * 8
         )),
         None => progress_bar
-            .println("Archive is encrypted with ZipCrypto - expect a much faster throughput"),
+            .println("Archive encrypted with ZipCrypto - expect a much faster throughput"),
     }
 
     let (send_found_password, receive_found_password): (Sender<String>, Receiver<String>) =
@@ -63,7 +63,7 @@ pub fn password_finder(
             max_password_len,
         } => password_generator_count(charset, *min_password_len, *max_password_len),
         PasswordFile(password_list_path) => {
-            let total = password_reader_count(password_list_path.to_path_buf())?;
+            let total = password_reader_count(password_list_path.clone())?;
             progress_bar.println(format!(
                 "Using passwords dictionary {password_list_path:?} with {total} candidates."
             ));

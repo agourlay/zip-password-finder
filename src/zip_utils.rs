@@ -32,9 +32,11 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesIn
     let aes_data = archive.get_aes_verification_key_and_salt(file_number);
     let zip_result = archive.by_index(file_number);
     match zip_result {
-        Ok(_) => Err(FinderError::invalid_zip_error(
-            "the archive is not encrypted".to_string(),
-        )),
+        Ok(z) => Err(FinderError::invalid_zip_error(format!(
+            "the selected file in the archive is not encrypted (file_number:{} file_name:{})",
+            file_number,
+            z.name()
+        ))),
         Err(UnsupportedArchive("Password required to decrypt file")) => {
             if let Some(aes_zip_info) = aes_data.expect("Archive validated before-hand") {
                 let aes_key_length = aes_zip_info.aes_mode.key_length();
@@ -46,7 +48,7 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<Option<AesIn
             }
         }
         Err(e) => Err(FinderError::invalid_zip_error(format!(
-            "Unexpected error {e:?}"
+            "unexpected error while opening archive: {e:?}"
         ))),
     }
 }
