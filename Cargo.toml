@@ -22,6 +22,10 @@ thiserror = "1.0.61"
 num_cpus = "1.16.0"
 ahash = "0.8.11"
 
+[profile.release]
+lto = "fat"
+codegen-units = 1
+
 [profile.test]
 opt-level = 3 # needed for fast execution
 
