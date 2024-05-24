@@ -1,4 +1,4 @@
-use crate::finder_errors::FinderError::InvalidZip;
+use crate::finder_errors::FinderError::{ClapMatchError, InvalidZip};
 use thiserror::Error;
 use zip::result::ZipError;
 
@@ -30,7 +30,7 @@ impl From<std::io::Error> for FinderError {
 
 impl From<ZipError> for FinderError {
     fn from(e: ZipError) -> Self {
-        FinderError::InvalidZip {
+        InvalidZip {
             message: format!("{e}"),
         }
     }
@@ -44,7 +44,7 @@ impl From<clap::Error> for FinderError {
 
 impl From<clap::parser::MatchesError> for FinderError {
     fn from(e: clap::parser::MatchesError) -> Self {
-        FinderError::ClapMatchError {
+        ClapMatchError {
             message: format!("{e}"),
         }
     }

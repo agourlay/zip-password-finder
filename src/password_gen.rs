@@ -6,7 +6,7 @@ pub fn password_generator_count(charset: &[char], min_size: usize, max_size: usi
     let charset_len = charset.len();
     let mut total_password_count = 0;
     for i in min_size..=max_size {
-        total_password_count += charset_len.pow(i as u32)
+        total_password_count += charset_len.pow(i as u32);
     }
     total_password_count
 }
@@ -133,7 +133,7 @@ impl Iterator for PasswordGenerator {
                 // reset all chars after previous
                 for (i, x) in self.password.iter_mut().enumerate() {
                     if *x == self.charset_last && i > at_prev {
-                        *x = self.charset_first
+                        *x = self.charset_first;
                     }
                 }
             } else {
@@ -224,7 +224,7 @@ mod tests {
                 eprintln!("## ACTUAL ##");
                 eprintln!("{}", l2.trim_end());
                 eprintln!("#####");
-                assert_eq!(l1, l2)
+                assert_eq!(l1, l2);
             }
         }
     }

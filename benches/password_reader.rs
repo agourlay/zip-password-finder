@@ -8,7 +8,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let iterator = password_dictionary_reader_iter(file_path);
             let _last = black_box(iterator.last());
-        })
+        });
     });
 }
 

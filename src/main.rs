@@ -18,7 +18,7 @@ use std::path::Path;
 fn main() {
     let result = main_result();
     std::process::exit(match result {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(err) => {
             eprintln!("{err}");
             1
@@ -38,23 +38,21 @@ fn main_result() -> Result<(), FinderError> {
         password_dictionary,
     } = get_args()?;
 
-    let strategy = match password_dictionary {
-        Some(dict_path) => {
-            let path = Path::new(&dict_path);
-            PasswordFile(path.to_path_buf())
-        }
-        None => {
-            let charset = to_charset(&charset_choice)?;
-            GenPasswords {
-                charset,
-                min_password_len,
-                max_password_len,
-            }
+    let strategy = if let Some(dict_path) = password_dictionary {
+        let path = Path::new(&dict_path);
+        PasswordFile(path.to_path_buf())
+    } else {
+        let charset = to_charset(&charset_choice)?;
+        GenPasswords {
+            charset,
+            min_password_len,
+            max_password_len,
         }
     };
 
+    // use physical cores by default to avoid issues with hyper-threading
     let workers = workers.unwrap_or_else(num_cpus::get_physical);
-    let password = password_finder(&input_file, workers, file_number, strategy)?;
+    let password = password_finder(&input_file, workers, file_number, &strategy)?;
     match password {
         Some(password) => println!("Password found: {password}"),
         None => println!("Password not found"),

@@ -134,7 +134,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
 
     Ok(Arguments {
         input_file: input_file.clone(),
-        workers: workers.cloned(),
+        workers: workers.copied(),
         charset_choice: charset_choice.clone(),
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,

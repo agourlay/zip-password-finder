@@ -24,7 +24,7 @@ pub fn password_finder(
     zip_path: &str,
     workers: usize,
     file_number: usize,
-    strategy: Strategy,
+    strategy: &Strategy,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
 
@@ -56,7 +56,7 @@ pub fn password_finder(
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
     let stop_gen_signal = Arc::new(AtomicBool::new(false));
 
-    let total_password_count = match &strategy {
+    let total_password_count = match strategy {
         GenPasswords {
             charset,
             min_password_len,
@@ -95,22 +95,21 @@ pub fn password_finder(
     // drop reference in `main` so that it disappears completely with workers for a clean shutdown
     drop(send_found_password);
 
-    match receive_found_password.recv() {
-        Ok(password_found) => {
-            // stop generating values first to avoid deadlock on channel
-            stop_gen_signal.store(true, Ordering::Relaxed);
-            // stop workers
-            stop_workers_signal.store(true, Ordering::Relaxed);
-            for h in worker_handles {
-                h.join().unwrap();
-            }
-            progress_bar.finish_and_clear();
-            Ok(Some(password_found))
+    // wait for password to be found
+    if let Ok(password_found) = receive_found_password.recv() {
+        // stop generating values first to avoid deadlock on channel
+        stop_gen_signal.store(true, Ordering::Relaxed);
+        // stop workers
+        stop_workers_signal.store(true, Ordering::Relaxed);
+        for h in worker_handles {
+            h.join().unwrap();
         }
-        Err(_) => {
-            progress_bar.finish_and_clear();
-            Ok(None)
-        }
+        progress_bar.finish_and_clear();
+        Ok(Some(password_found))
+    } else {
+        // workers are stopped by the signal
+        progress_bar.finish_and_clear();
+        Ok(None)
     }
 }
 
@@ -130,7 +129,7 @@ mod tests {
         };
         let workers = num_cpus::get_physical();
         let file_number = 0;
-        password_finder(path, workers, file_number, strategy)
+        password_finder(path, workers, file_number, &strategy)
     }
 
     fn find_password_dictionary(path: &str) -> Result<Option<String>, FinderError> {
@@ -139,7 +138,7 @@ mod tests {
         ));
         let workers = num_cpus::get_physical();
         let file_number = 0;
-        password_finder(path, workers, file_number, strategy)
+        password_finder(path, workers, file_number, &strategy)
     }
 
     #[test]

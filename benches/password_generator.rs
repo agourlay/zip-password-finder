@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             let iterator =
                 password_generator_iter(&charset, min_password_len, max_password_len, pb);
             let _last = black_box(iterator.last());
-        })
+        });
     });
 }
 

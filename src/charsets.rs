@@ -19,7 +19,7 @@ pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
         }
     }
     // make sure the charset does not contain duplicates
-    charset.sort();
+    charset.sort_unstable();
     charset.dedup();
     Ok(charset)
 }
