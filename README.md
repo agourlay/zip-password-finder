@@ -84,4 +84,10 @@ Native builds tend to perform better in general.
 
 ```RUSTFLAGS="-C target-cpu=native" cargo build --release```
 
-In general this tool is rather slow and seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
+In general this tool seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
+
+It makes sense to use a number of workers equal to the number of physical cores.
+
+E.g. of scalability with an 8 core CPU with 16 threads as the number of workers increases:
+
+![scalability example](finder-8-16.jpg "Scalability example")
