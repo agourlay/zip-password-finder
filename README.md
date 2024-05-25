@@ -1,5 +1,6 @@
 # zip-password-finder
 [![Build](https://github.com/agourlay/zip-password-finder/actions/workflows/ci.yml/badge.svg)](https://github.com/agourlay/zip-password-finder/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/zip-password-finder.svg)](https://crates.io/crates/zip-password-finder)
 
 `zip-password-finder` is a tool to find the password of protected zip files.
 
