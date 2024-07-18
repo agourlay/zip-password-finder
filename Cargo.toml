@@ -18,7 +18,7 @@ sha1 = "0.10.6"
 crossbeam-channel = "0.5.13"
 clap = { version = "4.5.9", features = ["cargo"] }
 indicatif = "0.17.8"
-thiserror = "1.0.62"
+thiserror = "1.0.63"
 num_cpus = "1.16.0"
 ahash = "0.8.11"
 
