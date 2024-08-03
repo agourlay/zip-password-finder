@@ -4,10 +4,10 @@ use crate::password_reader::password_reader_count;
 use crate::password_worker::password_checker;
 use crate::zip_utils::validate_zip;
 use crate::{GenPasswords, PasswordFile};
-use crossbeam_channel::{Receiver, Sender};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -49,8 +49,8 @@ pub fn password_finder(
             .println("Archive encrypted with ZipCrypto - expect a much faster throughput"),
     }
 
-    let (send_found_password, receive_found_password): (Sender<String>, Receiver<String>) =
-        crossbeam_channel::bounded(1);
+    let (send_found_password, receive_found_password): (SyncSender<String>, Receiver<String>) =
+        sync_channel(1);
 
     // stop signals to shut down threads
     let stop_workers_signal = Arc::new(AtomicBool::new(false));

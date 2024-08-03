@@ -2,13 +2,13 @@ use crate::password_finder::Strategy;
 use crate::password_gen::password_generator_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::zip_utils::AesInfo;
-use crossbeam_channel::Sender;
 use hmac::Hmac;
 use indicatif::ProgressBar;
 use sha1::Sha1;
 use std::io::{BufReader, Cursor, Read, Seek};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::{fs, thread};
@@ -47,7 +47,7 @@ pub fn password_checker(
     file_number: usize,
     aes_info: Option<AesInfo>,
     strategy: Strategy,
-    send_password_found: Sender<String>,
+    send_password_found: SyncSender<String>,
     stop_signal: Arc<AtomicBool>,
     progress_bar: ProgressBar,
 ) -> JoinHandle<()> {
