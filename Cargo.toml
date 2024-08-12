@@ -15,7 +15,7 @@ zip = "2.1.6"
 pbkdf2 = "0.12.2" # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
-clap = { version = "4.5.14", features = ["cargo"] }
+clap = { version = "4.5.15", features = ["cargo"] }
 indicatif = "0.17.8"
 thiserror = "1.0.63"
 num_cpus = "1.16.0"
