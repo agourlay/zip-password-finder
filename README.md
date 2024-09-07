@@ -27,7 +27,8 @@ The available charsets for the password generation are:
 ```
 
 Alternatively, you can provide a custom charset file with the `--charsetFile` option.
-It accepts a file path for a `txt` file containing the characters in a single line to use for the password generation.
+
+It accepts a file path for a `txt` file containing a single line of characters to use for the password generation.
 
 ## Installation
 
