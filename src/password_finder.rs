@@ -123,7 +123,7 @@ mod tests {
         max_password_len: usize,
     ) -> Result<Option<String>, FinderError> {
         let strategy = GenPasswords {
-            charset: charsets::to_charset("l")?,
+            charset: charsets::preset_to_charset("l")?,
             min_password_len: 1,
             max_password_len,
         };

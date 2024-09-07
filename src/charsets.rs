@@ -1,7 +1,34 @@
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
 
-pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
+pub enum CharsetChoice {
+    File(String),
+    Preset(String),
+}
+
+pub fn charset_from_choice(charset_choice: &CharsetChoice) -> Result<Vec<char>, FinderError> {
+    let mut charset = match charset_choice {
+        CharsetChoice::File(file_path) => charset_from_file(file_path)?,
+        CharsetChoice::Preset(preset) => preset_to_charset(preset)?,
+    };
+    // make sure the charset does not contain duplicates
+    charset.sort_unstable();
+    charset.dedup();
+    Ok(charset)
+}
+
+fn charset_from_file(p0: &String) -> Result<Vec<char>, FinderError> {
+    let path = std::path::Path::new(p0);
+    if !path.is_file() {
+        return Err(CliArgumentError {
+            message: format!("'{}' does not exist", p0),
+        });
+    }
+    let charset = std::fs::read_to_string(path)?;
+    Ok(charset.chars().collect())
+}
+
+pub(crate) fn preset_to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
     let mut charset: Vec<char> = vec![];
     for symbol in charset_choice.chars() {
         match symbol {
@@ -18,9 +45,6 @@ pub fn to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
             }
         }
     }
-    // make sure the charset does not contain duplicates
-    charset.sort_unstable();
-    charset.dedup();
     Ok(charset)
 }
 
@@ -67,37 +91,49 @@ mod tests {
 
     #[test]
     fn test_basic_charset() {
-        let charset = to_charset("l").unwrap();
+        let charset = preset_to_charset("l").unwrap();
         assert_eq!(charset, charset_lowercase_letters());
-        let charset = to_charset("u").unwrap();
+        let charset = preset_to_charset("u").unwrap();
         assert_eq!(charset, charset_uppercase_letters());
-        let charset = to_charset("d").unwrap();
+        let charset = preset_to_charset("d").unwrap();
         assert_eq!(charset, charset_digits());
-        let charset = to_charset("s").unwrap();
+        let charset = preset_to_charset("s").unwrap();
         assert_eq!(charset, charset_symbols());
-        let charset = to_charset("h").unwrap();
+        let charset = preset_to_charset("h").unwrap();
         assert_eq!(charset, charset_lowercase_hex());
-        let charset = to_charset("H").unwrap();
+        let charset = preset_to_charset("H").unwrap();
         assert_eq!(charset, charset_uppercase_hex());
     }
 
     #[test]
     fn test_combined_charsets() {
-        let charset = to_charset("lu").unwrap();
+        let charset = preset_to_charset("lu").unwrap();
         assert_eq!(
             charset,
-            [charset_uppercase_letters(), charset_lowercase_letters(),].concat()
+            [charset_lowercase_letters(), charset_uppercase_letters()].concat()
         );
 
-        let charset = to_charset("lud").unwrap();
+        let charset = preset_to_charset("lud").unwrap();
         assert_eq!(
             charset,
             [
-                charset_digits(),
-                charset_uppercase_letters(),
                 charset_lowercase_letters(),
+                charset_uppercase_letters(),
+                charset_digits(),
             ]
             .concat()
+        );
+    }
+
+    #[test]
+    fn test_charset_from_file() {
+        let charset = charset_from_file(&"test-files/file-charset.txt".to_string()).unwrap();
+        assert_eq!(
+            charset,
+            vec![
+                'a', '"', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', '2', '4', '6', '8', '0',
+                '*', '#', '$'
+            ]
         );
     }
 }

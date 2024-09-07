@@ -25,6 +25,9 @@ The available charsets for the password generation are:
   H | 0123456789ABCDEF           [0-9A-F]
   s | «space»!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 ```
+
+Alternatively, you can provide a custom charset file with the `--charsetFile` option.
+
 ## Installation
 
 ### Releases
@@ -56,24 +59,16 @@ Find the password of protected ZIP files
 Usage: zip-password-finder [OPTIONS] --inputFile <inputFile>
 
 Options:
-  -i, --inputFile <inputFile>
-          path to zip input file
-  -w, --workers <workers>
-          number of workers
-  -p, --passwordDictionary <passwordDictionary>
-          path to a password dictionary file
-  -c, --charset <charset>
-          charset to use to generate password [default: lud] [possible values: l, u, d, h, H, s]
-      --minPasswordLen <minPasswordLen>
-          minimum password length [default: 1]
-      --maxPasswordLen <maxPasswordLen>
-          maximum password length [default: 10]
-      --fileNumber <fileNumber>
-          file number in the zip archive [default: 0]
-  -h, --help
-          Print help
-  -V, --version
-          Print version
+  -i, --inputFile <inputFile>                    path to zip input file
+  -w, --workers <workers>                        number of workers
+  -p, --passwordDictionary <passwordDictionary>  path to a password dictionary file
+  -c, --charset <charset>                        charset to use to generate password [default: lud]
+      --charsetFile <charsetFile>                path to a charset file
+      --minPasswordLen <minPasswordLen>          minimum password length [default: 1]
+      --maxPasswordLen <maxPasswordLen>          maximum password length [default: 10]
+      --fileNumber <fileNumber>                  file number in the zip archive [default: 0]
+  -h, --help                                     Print help
+  -V, --version                                  Print version
 ```
 
 ## Performance

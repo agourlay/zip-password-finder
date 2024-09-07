@@ -8,11 +8,11 @@ mod password_worker;
 mod zip_utils;
 
 use crate::args::{get_args, Arguments};
-use crate::charsets::to_charset;
 use crate::finder_errors::FinderError;
 use crate::password_finder::password_finder;
 use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
 
+use crate::charsets::charset_from_choice;
 use std::path::Path;
 
 fn main() {
@@ -42,7 +42,7 @@ fn main_result() -> Result<(), FinderError> {
         let path = Path::new(&dict_path);
         PasswordFile(path.to_path_buf())
     } else {
-        let charset = to_charset(&charset_choice)?;
+        let charset = charset_from_choice(&charset_choice)?;
         GenPasswords {
             charset,
             min_password_len,

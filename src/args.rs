@@ -1,3 +1,4 @@
+use crate::charsets::CharsetChoice;
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
@@ -43,6 +44,13 @@ fn command() -> Command {
                 .required(false),
         )
         .arg(
+            Arg::new("charsetFile")
+                .help("path to a charset file")
+                .long("charsetFile")
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
             Arg::new("minPasswordLen")
                 .value_parser(value_parser!(usize))
                 .help("minimum password length")
@@ -74,7 +82,7 @@ fn command() -> Command {
 pub struct Arguments {
     pub input_file: String,
     pub workers: Option<usize>,
-    pub charset_choice: String,
+    pub charset_choice: CharsetChoice,
     pub min_password_len: usize,
     pub max_password_len: usize,
     pub file_number: usize,
@@ -96,12 +104,21 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     if let Some(dict_path) = password_dictionary {
         if !Path::new(&dict_path).is_file() {
             return Err(CliArgumentError {
-                message: "'password_dictionary' does not exist".to_string(),
+                message: "'passwordDictionary' does not exist".to_string(),
             });
         }
     }
 
     let charset_choice: &String = matches.get_one("charset").expect("impossible");
+
+    let charset_file: Option<&String> = matches.try_get_one("charsetFile")?;
+    if let Some(charset_file_path) = charset_file {
+        if !Path::new(&charset_file_path).is_file() {
+            return Err(CliArgumentError {
+                message: "'charsetFile' does not exist".to_string(),
+            });
+        }
+    }
 
     let workers: Option<&usize> = matches.try_get_one("workers")?;
     if workers == Some(&0) {
@@ -132,10 +149,17 @@ pub fn get_args() -> Result<Arguments, FinderError> {
 
     let file_number: &usize = matches.get_one("fileNumber").expect("impossible");
 
+    let charset_choice = if let Some(charset_file_path) = charset_file {
+        // priority to charset file
+        CharsetChoice::File(charset_file_path.clone())
+    } else {
+        CharsetChoice::Preset(charset_choice.clone())
+    };
+
     Ok(Arguments {
         input_file: input_file.clone(),
         workers: workers.copied(),
-        charset_choice: charset_choice.clone(),
+        charset_choice,
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,
         file_number: *file_number,
