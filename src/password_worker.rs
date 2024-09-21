@@ -134,14 +134,18 @@ pub fn password_checker(
                         Err(e) => panic!("Unexpected error {e:?}"),
                         Ok(mut zip) => {
                             // Validate password by reading the zip file to make sure it is not merely a hash collision.
-                            extraction_buffer.reserve(zip.size() as usize);
+                            let zip_size = zip.size() as usize;
+                            extraction_buffer.reserve(zip_size);
                             match zip.read_to_end(&mut extraction_buffer) {
                                 Err(_) => (), // password collision - continue
-                                Ok(_read) => {
-                                    // Send password and continue processing while waiting for signal
-                                    send_password_found
-                                        .send(password)
-                                        .expect("Send found password should not fail");
+                                Ok(data_read) => {
+                                    // if we read all the bytes, we have a match
+                                    if data_read == zip_size {
+                                        // Send password and continue processing while waiting for signal
+                                        send_password_found
+                                            .send(password)
+                                            .expect("Send found password should not fail");
+                                    }
                                 }
                             }
                             extraction_buffer.clear();
