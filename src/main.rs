@@ -52,7 +52,12 @@ fn main_result() -> Result<(), FinderError> {
 
     // use physical cores by default to avoid issues with hyper-threading
     let workers = workers.unwrap_or_else(num_cpus::get_physical);
+    let start_time = std::time::Instant::now();
     let password = password_finder(&input_file, workers, file_number, &strategy)?;
+    let elapsed = start_time.elapsed();
+    // display pretty time
+    let elapsed = humantime::format_duration(elapsed);
+    println!("Time elapsed: {elapsed}");
     match password {
         Some(password) => println!("Password found:{password}"),
         None => println!("Password not found"),
