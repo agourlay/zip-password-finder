@@ -1,9 +1,8 @@
 use ahash::AHashMap;
 use indicatif::ProgressBar;
 
-pub fn password_generator_count(charset: &[char], min_size: usize, max_size: usize) -> usize {
-    // compute the number of passwords to generate
-    let charset_len = charset.len();
+// compute the number of passwords to generate for range [min_size, max_size]
+pub fn password_generator_count(charset_len: usize, min_size: usize, max_size: usize) -> usize {
     let mut total_password_count = 0;
     for i in min_size..=max_size {
         total_password_count += charset_len.pow(i as u32);
@@ -36,6 +35,8 @@ impl PasswordGenerator {
         let charset_len = charset.len();
         let charset_first = *charset.first().expect("charset non empty");
         let charset_last = *charset.last().expect("charset non empty");
+        // possible passwords at min size
+        let possibilities = charset_len.pow(min_size as u32);
 
         // pre-compute charset indices
         let charset_indices = charset
@@ -45,14 +46,14 @@ impl PasswordGenerator {
             .collect::<AHashMap<char, usize>>();
 
         progress_bar.println(format!(
-            "Starting search space for password length {min_size} ({charset_len} possibilities) "
+            "Starting search space for password length {min_size} ({possibilities} possibilities) "
         ));
         let password = vec![charset_first; min_size];
         let current_len = password.len();
         let current_index = current_len - 1;
 
         let generated_count = 0;
-        let total_to_generate = password_generator_count(&charset, min_size, max_size);
+        let total_to_generate = password_generator_count(charset_len, min_size, max_size);
 
         PasswordGenerator {
             charset,

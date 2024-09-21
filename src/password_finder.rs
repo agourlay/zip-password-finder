@@ -61,7 +61,7 @@ pub fn password_finder(
             charset,
             min_password_len,
             max_password_len,
-        } => password_generator_count(charset, *min_password_len, *max_password_len),
+        } => password_generator_count(charset.len(), *min_password_len, *max_password_len),
         PasswordFile(password_list_path) => {
             let total = password_reader_count(password_list_path.clone())?;
             progress_bar.println(format!(
