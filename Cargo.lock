@@ -1133,7 +1133,7 @@ dependencies = [
 
 [[package]]
 name = "zip-password-finder"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "ahash",
  "clap",
