@@ -143,7 +143,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
 
     if min_password_len > max_password_len {
         return Err(CliArgumentError {
-            message: "'maxPasswordLen' must be greater than 'minPasswordLen'".to_string(),
+            message: "'maxPasswordLen' must be equal or greater than 'minPasswordLen'".to_string(),
         });
     }
 
