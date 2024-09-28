@@ -128,16 +128,15 @@ pub fn password_checker(
                     // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
                     // There are many passwords out there that will also pass the validity checks we are able to perform.
                     // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
-                    let res = archive.by_index_decrypt(file_number, password_bytes);
-                    match res {
-                        Err(ZipError::InvalidPassword) => (), // invalid password
+                    match archive.by_index_decrypt(file_number, password_bytes) {
+                        // invalid password
+                        Err(ZipError::InvalidPassword) => (),
+                        // unexpected error - stop worker
                         Err(e) => panic!("Unexpected error {e:?}"),
+                        // files in well-formed zip file should have a name
+                        Ok(zip) if zip.enclosed_name().is_none() => (),
+                        // potential valid password
                         Ok(mut zip) => {
-                            // files in well-formed zip file should have a name
-                            if zip.enclosed_name().is_none() {
-                                // no file name, skip
-                                continue;
-                            }
                             // Validate password by reading the zip file to make sure it is not merely a hash collision.
                             let zip_size = zip.size() as usize;
                             extraction_buffer.reserve(zip_size);
