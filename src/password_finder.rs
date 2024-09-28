@@ -54,7 +54,6 @@ pub fn password_finder(
 
     // stop signals to shut down threads
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
-    let stop_gen_signal = Arc::new(AtomicBool::new(false));
 
     let total_password_count = match strategy {
         GenPasswords {
@@ -97,8 +96,6 @@ pub fn password_finder(
 
     // wait for password to be found
     if let Ok(password_found) = receive_found_password.recv() {
-        // stop generating values first to avoid deadlock on channel
-        stop_gen_signal.store(true, Ordering::Relaxed);
         // stop workers
         stop_workers_signal.store(true, Ordering::Relaxed);
         for h in worker_handles {
