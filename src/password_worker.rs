@@ -133,6 +133,11 @@ pub fn password_checker(
                         Err(ZipError::InvalidPassword) => (), // invalid password
                         Err(e) => panic!("Unexpected error {e:?}"),
                         Ok(mut zip) => {
+                            // files in well-formed zip file should have a name
+                            if zip.enclosed_name().is_none() {
+                                // no file name, skip
+                                continue;
+                            }
                             // Validate password by reading the zip file to make sure it is not merely a hash collision.
                             let zip_size = zip.size() as usize;
                             extraction_buffer.reserve(zip_size);
