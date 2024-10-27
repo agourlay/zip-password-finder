@@ -8,6 +8,8 @@ pub enum FinderError {
     StdIoError { e: std::io::Error },
     #[error("Invalid zip file error - {message}")]
     InvalidZip { message: String },
+    #[error("File number not found within archive error - '{file_number}'")]
+    FileNotFoundInArchive { file_number: usize },
     #[error("CLI argument error - {message:?}")]
     CliArgumentError { message: String },
     #[error("CLI argument error ({e})")]
@@ -19,6 +21,10 @@ pub enum FinderError {
 impl FinderError {
     pub fn invalid_zip_error(message: String) -> Self {
         InvalidZip { message }
+    }
+
+    pub fn file_not_found_error(file_number: usize) -> Self {
+        FinderError::FileNotFoundInArchive { file_number }
     }
 }
 

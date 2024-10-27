@@ -39,7 +39,17 @@ pub fn password_finder(
     progress_bar.set_draw_target(draw_target);
 
     // Fail early if the zip file is not valid
-    let aes_info = validate_zip(file_path, file_number)?;
+    let validated_zip = validate_zip(file_path, file_number)?;
+    match &validated_zip.file_name {
+        Some(file_name) => {
+            progress_bar.println(format!("Targeting file '{file_name}' within the archive"))
+        }
+        None => progress_bar.println(format!(
+            "Cannot get file name from archive for --fileNumber {file_number}"
+        )),
+    }
+
+    let aes_info = validated_zip.aes_info;
     match &aes_info {
         Some(aes_info) => progress_bar.println(format!(
             "Archive encrypted with AES{} - expect a long wait time",
