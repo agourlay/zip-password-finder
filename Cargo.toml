@@ -17,7 +17,7 @@ hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
 clap = { version = "4.5.20", features = ["cargo"] }
 indicatif = "0.17.8"
-thiserror = "1.0.67"
+thiserror = "1.0.68"
 num_cpus = "1.16.0"
 ahash = "0.8.11"
 humantime = "2.1.0"
