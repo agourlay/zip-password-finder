@@ -42,7 +42,7 @@ pub fn password_finder(
     let validated_zip = validate_zip(file_path, file_number)?;
     match &validated_zip.file_name {
         Some(file_name) => {
-            progress_bar.println(format!("Targeting file '{file_name}' within the archive"))
+            progress_bar.println(format!("Targeting file '{file_name}' within the archive"));
         }
         None => progress_bar.println(format!(
             "Cannot get file name from archive for --fileNumber {file_number}"

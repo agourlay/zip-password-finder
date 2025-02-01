@@ -21,7 +21,7 @@ fn charset_from_file(p0: &String) -> Result<Vec<char>, FinderError> {
     let path = std::path::Path::new(p0);
     if !path.is_file() {
         return Err(CliArgumentError {
-            message: format!("'{}' does not exist", p0),
+            message: format!("'{p0}' does not exist"),
         });
     }
     let charset = std::fs::read_to_string(path)?;
@@ -40,7 +40,7 @@ pub fn preset_to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError>
             'H' => charset.append(&mut charset_uppercase_hex()),
             other => {
                 return Err(CliArgumentError {
-                    message: format!("Unknown charset option '{}'", other),
+                    message: format!("Unknown charset option '{other}'"),
                 })
             }
         }

@@ -45,7 +45,7 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<ValidatedZip
     let file = File::open(file_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     let aes_data = archive.get_aes_verification_key_and_salt(file_number);
-    let file_name = archive.name_for_index(file_number).map(|s| s.to_string());
+    let file_name = archive.name_for_index(file_number).map(ToString::to_string);
     let zip_result = archive.by_index(file_number);
     match zip_result {
         Ok(z) => Err(FinderError::invalid_zip_error(format!(
