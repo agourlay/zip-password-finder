@@ -31,7 +31,7 @@ impl PasswordGenerator {
         min_size: usize,
         max_size: usize,
         progress_bar: ProgressBar,
-    ) -> PasswordGenerator {
+    ) -> Self {
         let charset_len = charset.len();
         let charset_first = *charset.first().expect("charset non empty");
         let charset_last = *charset.last().expect("charset non empty");
@@ -55,7 +55,7 @@ impl PasswordGenerator {
         let generated_count = 0;
         let total_to_generate = password_generator_count(charset_len, min_size, max_size);
 
-        PasswordGenerator {
+        Self {
             charset,
             charset_indices,
             charset_len,

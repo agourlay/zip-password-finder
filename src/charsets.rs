@@ -28,7 +28,7 @@ fn charset_from_file(p0: &String) -> Result<Vec<char>, FinderError> {
     Ok(charset.chars().collect())
 }
 
-pub(crate) fn preset_to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
+pub fn preset_to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError> {
     let mut charset: Vec<char> = vec![];
     for symbol in charset_choice.chars() {
         match symbol {

@@ -13,11 +13,11 @@ pub struct AesInfo {
 }
 
 impl AesInfo {
-    pub fn new(aes_key_length: usize, verification_value: [u8; 2], salt: Vec<u8>) -> Self {
+    pub const fn new(aes_key_length: usize, verification_value: [u8; 2], salt: Vec<u8>) -> Self {
         // derive a key from the password and salt
         // the length depends on the aes key length
         let derived_key_length = 2 * aes_key_length + 2;
-        AesInfo {
+        Self {
             aes_key_length,
             verification_value,
             derived_key_length,
@@ -32,8 +32,8 @@ pub struct ValidatedZip {
 }
 
 impl ValidatedZip {
-    pub fn new(aes_info: Option<AesInfo>, file_name: Option<String>) -> Self {
-        ValidatedZip {
+    pub const fn new(aes_info: Option<AesInfo>, file_name: Option<String>) -> Self {
+        Self {
             aes_info,
             file_name,
         }

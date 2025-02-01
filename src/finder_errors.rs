@@ -19,18 +19,18 @@ pub enum FinderError {
 }
 
 impl FinderError {
-    pub fn invalid_zip_error(message: String) -> Self {
+    pub const fn invalid_zip_error(message: String) -> Self {
         InvalidZip { message }
     }
 
-    pub fn file_not_found_error(file_number: usize) -> Self {
-        FinderError::FileNotFoundInArchive { file_number }
+    pub const fn file_not_found_error(file_number: usize) -> Self {
+        Self::FileNotFoundInArchive { file_number }
     }
 }
 
 impl From<std::io::Error> for FinderError {
     fn from(e: std::io::Error) -> Self {
-        FinderError::StdIoError { e }
+        Self::StdIoError { e }
     }
 }
 
@@ -44,7 +44,7 @@ impl From<ZipError> for FinderError {
 
 impl From<clap::Error> for FinderError {
     fn from(e: clap::Error) -> Self {
-        FinderError::ClapError { e }
+        Self::ClapError { e }
     }
 }
 
