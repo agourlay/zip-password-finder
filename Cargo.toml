@@ -20,7 +20,7 @@ indicatif = "0.17.11"
 thiserror = "2.0.12"
 num_cpus = "1.16.0"
 ahash = "0.8.11"
-humantime = "2.1.0"
+humantime = "2.2.0"
 
 [profile.release]
 lto = "fat"
