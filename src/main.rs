@@ -14,6 +14,8 @@ use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
 
 use crate::charsets::charset_from_choice;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 fn main() {
     let result = main_result();
@@ -53,7 +55,16 @@ fn main_result() -> Result<(), FinderError> {
     // use physical cores by default to avoid issues with hyper-threading
     let workers = workers.unwrap_or_else(num_cpus::get_physical);
     let start_time = std::time::Instant::now();
-    let password = password_finder(&input_file, workers, file_number, &strategy)?;
+
+    // stop signals to shut down threads
+    let stop_signal = Arc::new(AtomicBool::new(false));
+
+    // Intercept Ctrl-C signal to stop workers manually
+    let stop_signal_interrupt = stop_signal.clone();
+    ctrlc::set_handler(move || stop_signal_interrupt.store(true, Ordering::Relaxed))
+        .expect("Error setting Ctrl-C handler");
+
+    let password = password_finder(&input_file, workers, file_number, &strategy, stop_signal)?;
     let elapsed = start_time.elapsed();
     // display pretty time
     let elapsed = humantime::format_duration(elapsed);

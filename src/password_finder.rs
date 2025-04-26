@@ -25,6 +25,7 @@ pub fn password_finder(
     workers: usize,
     file_number: usize,
     strategy: &Strategy,
+    stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
 
@@ -62,14 +63,6 @@ pub fn password_finder(
     let (send_found_password, receive_found_password): (SyncSender<String>, Receiver<String>) =
         sync_channel(1);
 
-    // stop signals to shut down threads
-    let stop_workers_signal = Arc::new(AtomicBool::new(false));
-
-    // Intercept Ctrl-C signal to stop workers manually
-    let stop_workers_signal_interrupt = stop_workers_signal.clone();
-    ctrlc::set_handler(move || stop_workers_signal_interrupt.store(true, Ordering::Relaxed))
-        .expect("Error setting Ctrl-C handler");
-
     let total_password_count = match strategy {
         GenPasswords {
             charset,
@@ -100,7 +93,7 @@ pub fn password_finder(
             aes_info.clone(),
             strategy.clone(),
             send_found_password.clone(),
-            stop_workers_signal.clone(),
+            stop_signal.clone(),
             progress_bar.clone(),
         );
         worker_handles.push(join_handle);
@@ -112,7 +105,7 @@ pub fn password_finder(
     // wait for password to be found
     if let Ok(password_found) = receive_found_password.recv() {
         // stop workers on success
-        stop_workers_signal.store(true, Ordering::Relaxed);
+        stop_signal.store(true, Ordering::Relaxed);
         for h in worker_handles {
             h.join().unwrap();
         }
@@ -141,7 +134,13 @@ mod tests {
         };
         let workers = num_cpus::get_physical();
         let file_number = 0;
-        password_finder(path, workers, file_number, &strategy)
+        password_finder(
+            path,
+            workers,
+            file_number,
+            &strategy,
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     fn find_password_dictionary(path: &str) -> Result<Option<String>, FinderError> {
@@ -150,7 +149,13 @@ mod tests {
         ));
         let workers = num_cpus::get_physical();
         let file_number = 0;
-        password_finder(path, workers, file_number, &strategy)
+        password_finder(
+            path,
+            workers,
+            file_number,
+            &strategy,
+            Arc::new(AtomicBool::new(false)),
+        )
     }
 
     #[test]
