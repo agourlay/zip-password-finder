@@ -65,6 +65,11 @@ pub fn password_finder(
     // stop signals to shut down threads
     let stop_workers_signal = Arc::new(AtomicBool::new(false));
 
+    // Intercept Ctrl-C signal to stop workers manually
+    let stop_workers_signal_interrupt = stop_workers_signal.clone();
+    ctrlc::set_handler(move || stop_workers_signal_interrupt.store(true, Ordering::Relaxed))
+        .expect("Error setting Ctrl-C handler");
+
     let total_password_count = match strategy {
         GenPasswords {
             charset,
@@ -106,7 +111,7 @@ pub fn password_finder(
 
     // wait for password to be found
     if let Ok(password_found) = receive_found_password.recv() {
-        // stop workers
+        // stop workers on success
         stop_workers_signal.store(true, Ordering::Relaxed);
         for h in worker_handles {
             h.join().unwrap();

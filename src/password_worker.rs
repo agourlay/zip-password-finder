@@ -147,7 +147,7 @@ pub fn password_checker(
                                     if data_read == zip_size {
                                         // Send password and continue processing while waiting for signal
                                         send_password_found
-                                            .send(password)
+                                            .send(password.clone())
                                             .expect("Send found password should not fail");
                                     }
                                 }
@@ -165,6 +165,9 @@ pub fn password_checker(
                     }
                     // check if we should stop
                     if stop_signal.load(Ordering::Relaxed) {
+                        if first_worker {
+                            progress_bar.println(format!("Last password processed:{password}"));
+                        }
                         break;
                     }
                     processed_delta = 0;

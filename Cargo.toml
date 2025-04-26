@@ -21,6 +21,7 @@ thiserror = "2.0.12"
 num_cpus = "1.16.0"
 ahash = "0.8.11"
 humantime = "2.2.0"
+ctrlc = "3.4"
 
 [profile.release]
 lto = "fat"
