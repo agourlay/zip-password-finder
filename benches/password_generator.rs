@@ -11,7 +11,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let pb = ProgressBar::hidden();
             let iterator =
-                password_generator_iter(&charset, min_password_len, max_password_len, pb);
+                password_generator_iter(&charset, min_password_len, max_password_len, None, pb);
             let _last = black_box(iterator.last());
         });
     });

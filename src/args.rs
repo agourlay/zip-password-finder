@@ -1,4 +1,4 @@
-use crate::charsets::CharsetChoice;
+use crate::charsets::{charset_from_choice, CharsetChoice};
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
@@ -77,6 +77,13 @@ fn command() -> Command {
                 .default_value("0")
                 .required(false),
         )
+        .arg(
+            Arg::new("startingPassword")
+                .help("password to start from")
+                .long("startingPassword")
+                .short('s')
+                .required(false),
+        )
 }
 
 pub struct Arguments {
@@ -87,6 +94,7 @@ pub struct Arguments {
     pub max_password_len: usize,
     pub file_number: usize,
     pub password_dictionary: Option<String>,
+    pub starting_password: Option<String>,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
@@ -156,6 +164,34 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         CharsetChoice::Preset(charset_choice.clone())
     };
 
+    let starting_password: Option<&String> = matches.try_get_one("startingPassword")?;
+    if let Some(starting_password) = starting_password {
+        // can't use with dictionary for now (a bit annoying to lookup in dictionary to start from a given word)
+        if password_dictionary.is_some() {
+            return Err(CliArgumentError {
+                message: "'startingPassword' cannot be used with a dictionary file".to_string(),
+            });
+        }
+
+        // validate startingPassword regarding charset
+        let charset = charset_from_choice(&charset_choice)?;
+        let out_of_charset = starting_password.chars().any(|c| !charset.contains(&c));
+        if out_of_charset {
+            return Err(CliArgumentError {
+                message: "'startingPassword' uses characters out of the generation charset"
+                    .to_string(),
+            });
+        }
+
+        // validate startingPassword regarding len
+        let starting_password_len = starting_password.chars().count();
+        if starting_password_len > *max_password_len || starting_password_len < *min_password_len {
+            return Err(CliArgumentError {
+                message: "'startingPassword' does not respect 'max_password_len' or 'min_password_len' configuration".to_string(),
+            });
+        }
+    }
+
     Ok(Arguments {
         input_file: input_file.clone(),
         workers: workers.copied(),
@@ -164,6 +200,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         max_password_len: *max_password_len,
         file_number: *file_number,
         password_dictionary: password_dictionary.cloned(),
+        starting_password: starting_password.cloned(),
     })
 }
 

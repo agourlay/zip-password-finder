@@ -10,6 +10,29 @@ pub fn password_generator_count(charset_len: usize, min_size: usize, max_size: u
     total_password_count
 }
 
+// compute the number of passwords already generated up to `starting_password` with `min_size`
+pub fn password_count_already_generated(
+    charset: &[char],
+    min_size: usize,
+    starting_password: &str,
+) -> usize {
+    let base = charset.len();
+    let mut count = 0;
+
+    // Step 1: Count all passwords of shorter lengths
+    for len in min_size..starting_password.len() {
+        count += base.pow(len as u32);
+    }
+
+    // Step 2: Interpret starting_password as a base-N number
+    for (i, c) in starting_password.chars().rev().enumerate() {
+        let pos = charset.iter().position(|x| *x == c).unwrap();
+        count += pos * base.pow(i as u32);
+    }
+
+    count + 1 // Include the current password
+}
+
 struct PasswordGenerator {
     charset: Vec<char>,
     charset_indices: AHashMap<char, usize>,
@@ -30,13 +53,12 @@ impl PasswordGenerator {
         charset: Vec<char>,
         min_size: usize,
         max_size: usize,
+        starting_password: Option<String>,
         progress_bar: ProgressBar,
     ) -> Self {
         let charset_len = charset.len();
         let charset_first = *charset.first().expect("charset non empty");
         let charset_last = *charset.last().expect("charset non empty");
-        // possible passwords at min size
-        let possibilities = charset_len.pow(min_size as u32);
 
         // pre-compute charset indices
         let charset_indices = charset
@@ -45,15 +67,29 @@ impl PasswordGenerator {
             .map(|(i, c)| (*c, i))
             .collect::<AHashMap<char, usize>>();
 
-        progress_bar.println(format!(
-            "Starting search space for password length {min_size} ({possibilities} possibilities) "
-        ));
-        let password = vec![charset_first; min_size];
+        let mut password = vec![charset_first; min_size];
+        let mut total_to_generate = password_generator_count(charset_len, min_size, max_size);
+        if let Some(starting_password) = starting_password {
+            password = starting_password.chars().collect();
+            let password_len = password.len();
+            let already_generated_count =
+                password_count_already_generated(&charset, min_size, &starting_password);
+            // decrease number of password to generate
+            total_to_generate -= already_generated_count;
+            progress_bar.println(format!(
+                "Starting search space for password length {password_len} from {starting_password} (skipping {already_generated_count} passwords)"
+            ));
+        } else {
+            // possible passwords at min size
+            let possibilities = charset_len.pow(min_size as u32);
+            progress_bar.println(format!(
+                "Starting search space for password length {min_size} ({possibilities} possibilities)"
+            ));
+        }
+
+        // init current cursors
         let current_len = password.len();
         let current_index = current_len - 1;
-
-        let generated_count = 0;
-        let total_to_generate = password_generator_count(charset_len, min_size, max_size);
 
         Self {
             charset,
@@ -64,7 +100,7 @@ impl PasswordGenerator {
             max_size,
             current_len,
             current_index,
-            generated_count,
+            generated_count: 0,
             total_to_generate,
             password,
             progress_bar,
@@ -159,17 +195,35 @@ pub fn password_generator_iter(
     charset: &[char],
     min_size: usize,
     max_size: usize,
+    starting_password: Option<String>,
     progress_bar: ProgressBar,
 ) -> impl Iterator<Item = String> {
     // start generation
-    progress_bar.println(format!(
-        "Generating passwords with length from {} to {} for charset with length {}\n{}",
+    if let Some(starting_password) = &starting_password {
+        progress_bar.println(format!(
+            "Generating passwords with length from {} to {} starting from {} for charset with length {}\n{}",
+            min_size,
+            max_size,
+            starting_password,
+            charset.len(),
+            charset.iter().collect::<String>()
+        ));
+    } else {
+        progress_bar.println(format!(
+            "Generating passwords with length from {} to {} for charset with length {}\n{}",
+            min_size,
+            max_size,
+            charset.len(),
+            charset.iter().collect::<String>()
+        ));
+    }
+    PasswordGenerator::new(
+        charset.to_vec(),
         min_size,
         max_size,
-        charset.len(),
-        charset.iter().collect::<String>()
-    ));
-    PasswordGenerator::new(charset.to_vec(), min_size, max_size, progress_bar)
+        starting_password,
+        progress_bar,
+    )
 }
 
 #[cfg(test)]
@@ -180,7 +234,7 @@ mod tests {
 
     #[test]
     fn generate_password_max_size_two() {
-        let mut iter = password_generator_iter(&['a', 'b', 'c'], 1, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&['a', 'b', 'c'], 1, 2, None, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("a".into()));
         assert_eq!(iter.next(), Some("b".into()));
         assert_eq!(iter.next(), Some("c".into()));
@@ -197,8 +251,45 @@ mod tests {
     }
 
     #[test]
+    fn generate_password_max_size_two_starting_from() {
+        let mut iter = password_generator_iter(
+            &['a', 'b', 'c'],
+            1,
+            2,
+            Some("bb".to_string()),
+            ProgressBar::hidden(),
+        );
+        assert_eq!(iter.next(), Some("bb".into()));
+        assert_eq!(iter.next(), Some("bc".into()));
+        assert_eq!(iter.next(), Some("ca".into()));
+        assert_eq!(iter.next(), Some("cb".into()));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_already_generated_count() {
+        let count = password_count_already_generated(&['a', 'b', 'c'], 1, "a");
+        assert_eq!(count, 1);
+        let count = password_count_already_generated(&['a', 'b', 'c'], 1, "b");
+        assert_eq!(count, 2);
+        let count = password_count_already_generated(&['a', 'b', 'c'], 1, "c");
+        assert_eq!(count, 3);
+        let count = password_count_already_generated(&['a', 'b', 'c'], 1, "aa");
+        assert_eq!(count, 4);
+        let count = password_count_already_generated(&['a', 'b', 'c'], 1, "bb");
+        assert_eq!(count, 8);
+        let count = password_count_already_generated(&['a', 'b', 'c', 'd'], 1, "abcd");
+        assert_eq!(count, 112);
+        let charset: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            .chars()
+            .collect();
+        let count = password_count_already_generated(&charset, 1, "abcd");
+        assert_eq!(count, 246_206);
+    }
+
+    #[test]
     fn generate_password_min_max_size_two() {
-        let mut iter = password_generator_iter(&['a', 'b', 'c'], 2, 2, ProgressBar::hidden());
+        let mut iter = password_generator_iter(&['a', 'b', 'c'], 2, 2, None, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("aa".into()));
         assert_eq!(iter.next(), Some("ab".into()));
         assert_eq!(iter.next(), Some("ac".into()));
@@ -213,8 +304,13 @@ mod tests {
 
     #[test]
     fn generate_password_large() {
-        let mut iter =
-            password_generator_iter(&charset_lowercase_letters(), 1, 3, ProgressBar::hidden());
+        let mut iter = password_generator_iter(
+            &charset_lowercase_letters(),
+            1,
+            3,
+            None,
+            ProgressBar::hidden(),
+        );
         let gold_path = "test-files/generated-passwords-lowercase.txt";
         let gold = fs::read_to_string(gold_path).expect("gold file not found!");
         for (i1, l1) in gold.lines().enumerate() {

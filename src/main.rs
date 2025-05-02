@@ -38,6 +38,7 @@ fn main_result() -> Result<(), FinderError> {
         max_password_len,
         file_number,
         password_dictionary,
+        starting_password,
     } = get_args()?;
 
     let strategy = if let Some(dict_path) = password_dictionary {
@@ -49,6 +50,7 @@ fn main_result() -> Result<(), FinderError> {
             charset,
             min_password_len,
             max_password_len,
+            starting_password,
         }
     };
 

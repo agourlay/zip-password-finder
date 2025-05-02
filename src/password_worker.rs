@@ -63,6 +63,7 @@ pub fn password_checker(
                     charset,
                     min_password_len,
                     max_password_len,
+                    starting_password,
                 } => {
                     // password generator logs its progress, make sure only the first one does
                     let pb = if first_worker {
@@ -70,8 +71,13 @@ pub fn password_checker(
                     } else {
                         ProgressBar::hidden()
                     };
-                    let iterator =
-                        password_generator_iter(&charset, min_password_len, max_password_len, pb);
+                    let iterator = password_generator_iter(
+                        &charset,
+                        min_password_len,
+                        max_password_len,
+                        starting_password,
+                        pb,
+                    );
                     Box::new(iterator)
                 }
                 Strategy::PasswordFile(dictionary_path) => {

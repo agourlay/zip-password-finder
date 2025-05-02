@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
+use zip_password_finder::password_gen::password_count_already_generated;
 
 #[derive(Clone, Debug)]
 pub enum Strategy {
@@ -17,6 +18,7 @@ pub enum Strategy {
         charset: Vec<char>,
         min_password_len: usize,
         max_password_len: usize,
+        starting_password: Option<String>,
     },
 }
 
@@ -63,23 +65,37 @@ pub fn password_finder(
     let (send_found_password, receive_found_password): (SyncSender<String>, Receiver<String>) =
         sync_channel(1);
 
-    let total_password_count = match strategy {
+    let (total_password_count, skipped) = match strategy {
         GenPasswords {
             charset,
             min_password_len,
             max_password_len,
-        } => password_generator_count(charset.len(), *min_password_len, *max_password_len),
+            starting_password,
+        } => {
+            let mut skip = 0;
+            let total =
+                password_generator_count(charset.len(), *min_password_len, *max_password_len);
+            if let Some(starting_password) = starting_password {
+                skip =
+                    password_count_already_generated(charset, *min_password_len, starting_password);
+            }
+            (total, skip)
+        }
         PasswordFile(password_list_path) => {
             let total = password_reader_count(password_list_path.clone())?;
             progress_bar.println(format!(
                 "Using passwords dictionary {password_list_path:?} with {total} candidates."
             ));
-            total
+            (total, 0)
         }
     };
 
     // set progress bar length according to the total number of passwords
     progress_bar.set_length(total_password_count as u64);
+    // set progress bar position according to the number password skipped
+    progress_bar.set_position(skipped as u64);
+    // reset progress_bar speed
+    progress_bar.reset_elapsed();
 
     let mut worker_handles = Vec::with_capacity(workers);
 
@@ -131,6 +147,7 @@ mod tests {
             charset: charsets::preset_to_charset("l")?,
             min_password_len: 1,
             max_password_len,
+            starting_password: None,
         };
         let workers = num_cpus::get_physical();
         let file_number = 0;

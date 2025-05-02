@@ -69,6 +69,7 @@ Options:
       --minPasswordLen <minPasswordLen>          minimum password length [default: 1]
       --maxPasswordLen <maxPasswordLen>          maximum password length [default: 10]
       --fileNumber <fileNumber>                  file number in the zip archive [default: 0]
+  -s, --startingPassword <startingPassword>      password to start from
   -h, --help                                     Print help
   -V, --version                                  Print version
 ```
