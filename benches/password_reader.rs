@@ -1,5 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::path::Path;
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::{hint::black_box, path::Path};
 use zip_password_finder::password_reader::password_dictionary_reader_iter;
 
 pub fn criterion_benchmark(c: &mut Criterion) {

@@ -1,4 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
 use indicatif::ProgressBar;
 use zip_password_finder::charsets::charset_lowercase_letters;
 use zip_password_finder::password_gen::password_generator_iter;
