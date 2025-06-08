@@ -192,7 +192,7 @@ impl Iterator for PasswordGenerator {
 }
 
 pub fn password_generator_iter(
-    charset: &[char],
+    charset: Vec<char>,
     min_size: usize,
     max_size: usize,
     starting_password: Option<String>,
@@ -217,13 +217,7 @@ pub fn password_generator_iter(
             charset.iter().collect::<String>()
         ));
     }
-    PasswordGenerator::new(
-        charset.to_vec(),
-        min_size,
-        max_size,
-        starting_password,
-        progress_bar,
-    )
+    PasswordGenerator::new(charset, min_size, max_size, starting_password, progress_bar)
 }
 
 #[cfg(test)]
@@ -234,7 +228,8 @@ mod tests {
 
     #[test]
     fn generate_password_max_size_two() {
-        let mut iter = password_generator_iter(&['a', 'b', 'c'], 1, 2, None, ProgressBar::hidden());
+        let mut iter =
+            password_generator_iter(vec!['a', 'b', 'c'], 1, 2, None, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("a".into()));
         assert_eq!(iter.next(), Some("b".into()));
         assert_eq!(iter.next(), Some("c".into()));
@@ -253,7 +248,7 @@ mod tests {
     #[test]
     fn generate_password_max_size_two_starting_from() {
         let mut iter = password_generator_iter(
-            &['a', 'b', 'c'],
+            vec!['a', 'b', 'c'],
             1,
             2,
             Some("bb".to_string()),
@@ -289,7 +284,8 @@ mod tests {
 
     #[test]
     fn generate_password_min_max_size_two() {
-        let mut iter = password_generator_iter(&['a', 'b', 'c'], 2, 2, None, ProgressBar::hidden());
+        let mut iter =
+            password_generator_iter(vec!['a', 'b', 'c'], 2, 2, None, ProgressBar::hidden());
         assert_eq!(iter.next(), Some("aa".into()));
         assert_eq!(iter.next(), Some("ab".into()));
         assert_eq!(iter.next(), Some("ac".into()));
@@ -305,7 +301,7 @@ mod tests {
     #[test]
     fn generate_password_large() {
         let mut iter = password_generator_iter(
-            &charset_lowercase_letters(),
+            charset_lowercase_letters(),
             1,
             3,
             None,

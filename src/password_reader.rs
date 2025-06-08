@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error> {
     // compute the number of lines in the file
@@ -22,8 +22,8 @@ pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error
     Ok(total_password_count)
 }
 
-pub fn password_dictionary_reader_iter(file_path: &Path) -> impl Iterator<Item = String> {
-    DictionaryReader::new(file_path.to_path_buf())
+pub fn password_dictionary_reader_iter(file_path: PathBuf) -> impl Iterator<Item = String> {
+    DictionaryReader::new(file_path)
 }
 
 struct DictionaryReader {
@@ -74,9 +74,8 @@ mod tests {
 
     #[test]
     fn read_passwords_from_dictionary() {
-        let iter = password_dictionary_reader_iter(&PathBuf::from(
-            "test-files/generated-passwords-lowercase.txt",
-        ));
+        let path = PathBuf::from("test-files/generated-passwords-lowercase.txt");
+        let iter = password_dictionary_reader_iter(path);
         assert_eq!(iter.count(), 18278);
     }
 }

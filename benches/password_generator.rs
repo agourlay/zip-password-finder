@@ -1,6 +1,6 @@
 use std::hint::black_box;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use indicatif::ProgressBar;
 use zip_password_finder::charsets::charset_lowercase_letters;
 use zip_password_finder::password_gen::password_generator_iter;
@@ -12,8 +12,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let max_password_len = 5;
         b.iter(|| {
             let pb = ProgressBar::hidden();
-            let iterator =
-                password_generator_iter(&charset, min_password_len, max_password_len, None, pb);
+            let iterator = password_generator_iter(
+                charset.clone(),
+                min_password_len,
+                max_password_len,
+                None,
+                pb,
+            );
             let _last = black_box(iterator.last());
         });
     });

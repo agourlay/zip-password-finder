@@ -7,15 +7,15 @@ mod password_reader;
 mod password_worker;
 mod zip_utils;
 
-use crate::args::{get_args, Arguments};
+use crate::args::{Arguments, get_args};
 use crate::finder_errors::FinderError;
-use crate::password_finder::password_finder;
 use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
+use crate::password_finder::password_finder;
 
 use crate::charsets::charset_from_choice;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn main() {
     let result = main_result();

@@ -6,9 +6,9 @@ use crate::zip_utils::validate_zip;
 use crate::{GenPasswords, PasswordFile};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use zip_password_finder::password_gen::password_count_already_generated;
 
 #[derive(Clone, Debug)]

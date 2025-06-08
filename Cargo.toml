@@ -8,11 +8,11 @@ license = "Apache-2.0"
 readme = "README.md"
 categories = ["command-line-interface"]
 keywords = ["zip", "archive", "password", "crack", "brute-force"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 zip = "4.0.0"
-pbkdf2 = "0.12.2" # parallel version did not help the performance
+pbkdf2 = "0.12.2"                                   # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
 clap = { version = "4.5.39", features = ["cargo"] }
@@ -31,7 +31,10 @@ codegen-units = 1
 opt-level = 3 # needed for fast execution
 
 [dev-dependencies]
-criterion = { version = "0.6.0", default-features = false, features = ["cargo_bench_support", "html_reports"] }
+criterion = { version = "0.6.0", default-features = false, features = [
+    "cargo_bench_support",
+    "html_reports",
+] }
 
 [profile.bench]
 debug = true

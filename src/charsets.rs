@@ -41,7 +41,7 @@ pub fn preset_to_charset(charset_choice: &str) -> Result<Vec<char>, FinderError>
             other => {
                 return Err(CliArgumentError {
                     message: format!("Unknown charset option '{other}'"),
-                })
+                });
             }
         }
     }

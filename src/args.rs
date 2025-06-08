@@ -1,8 +1,8 @@
-use crate::charsets::{charset_from_choice, CharsetChoice};
+use crate::charsets::{CharsetChoice, charset_from_choice};
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
-use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use clap::{Arg, Command};
+use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use std::path::Path;
 
 fn command() -> Command {

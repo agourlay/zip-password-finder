@@ -7,13 +7,13 @@ use indicatif::ProgressBar;
 use sha1::Sha1;
 use std::io::{BufReader, Cursor, Read, Seek};
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
-use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::{fs, thread};
-use zip::result::ZipError;
 use zip::ZipArchive;
+use zip::result::ZipError;
 
 pub fn filter_for_worker_index(
     passwords: Box<dyn Iterator<Item = String>>,
@@ -72,7 +72,7 @@ pub fn password_checker(
                         ProgressBar::hidden()
                     };
                     let iterator = password_generator_iter(
-                        &charset,
+                        charset,
                         min_password_len,
                         max_password_len,
                         starting_password,
@@ -81,7 +81,7 @@ pub fn password_checker(
                     Box::new(iterator)
                 }
                 Strategy::PasswordFile(dictionary_path) => {
-                    let iterator = password_dictionary_reader_iter(&dictionary_path);
+                    let iterator = password_dictionary_reader_iter(dictionary_path);
                     Box::new(iterator)
                 }
             };
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_one_worker() {
-        let iter = password_dictionary_reader_iter(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_two_workers_index_one() {
-        let iter = password_dictionary_reader_iter(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_two_workers_index_two() {
-        let iter = password_dictionary_reader_iter(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn filter_passwords_three_workers_index_one() {
-        let iter = password_dictionary_reader_iter(&PathBuf::from(
+        let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
         let box_iter = Box::new(iter);
