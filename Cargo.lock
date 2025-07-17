@@ -1249,6 +1249,7 @@ dependencies = [
  "clap",
  "criterion",
  "ctrlc",
+ "either",
  "hmac",
  "humantime",
  "indicatif",

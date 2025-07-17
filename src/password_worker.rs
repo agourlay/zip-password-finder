@@ -2,10 +2,11 @@ use crate::password_finder::Strategy;
 use crate::password_gen::password_generator_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::zip_utils::AesInfo;
+use either::Either;
 use hmac::Hmac;
 use indicatif::ProgressBar;
 use sha1::Sha1;
-use std::io::{BufReader, Cursor, Read, Seek};
+use std::io::{BufReader, Cursor, Read};
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,12 +17,12 @@ use zip::ZipArchive;
 use zip::result::ZipError;
 
 pub fn filter_for_worker_index(
-    passwords: Box<dyn Iterator<Item = String>>,
+    passwords: impl Iterator<Item = String>,
     worker_count: usize,
     index: usize,
-) -> Box<dyn Iterator<Item = String>> {
+) -> impl Iterator<Item = String> {
     if worker_count > 1 {
-        Box::new(passwords.enumerate().filter_map(move |(i, line)| {
+        Either::Left(passwords.enumerate().filter_map(move |(i, line)| {
             //eprintln!("thread:{} index:{} word:{} module:{}, pass:{}", index, i, line, i % worker_count, i % worker_count == index - 1);
             if i % worker_count == index - 1 {
                 Some(line)
@@ -30,14 +31,9 @@ pub fn filter_for_worker_index(
             }
         }))
     } else {
-        passwords
+        Either::Right(passwords)
     }
 }
-
-// abstraction for the zip reader
-trait ZipReader: Read + Seek {}
-impl ZipReader for Cursor<Vec<u8>> {}
-impl ZipReader for BufReader<fs::File> {}
 
 #[allow(clippy::too_many_arguments)]
 pub fn password_checker(
@@ -58,7 +54,7 @@ pub fn password_checker(
             let batching_delta = worker_count as u64 * 500;
             let first_worker = index == 1;
             let progress_bar_delta = batching_delta * worker_count as u64;
-            let mut passwords_iter: Box<dyn Iterator<Item = String>> = match strategy {
+            let passwords_iter = match strategy {
                 Strategy::GenPasswords {
                     charset,
                     min_password_len,
@@ -71,22 +67,22 @@ pub fn password_checker(
                     } else {
                         ProgressBar::hidden()
                     };
-                    let iterator = password_generator_iter(
+                    Either::Left(password_generator_iter(
                         charset,
                         min_password_len,
                         max_password_len,
                         starting_password,
                         pb,
-                    );
-                    Box::new(iterator)
+                    ))
                 }
                 Strategy::PasswordFile(dictionary_path) => {
-                    let iterator = password_dictionary_reader_iter(dictionary_path);
-                    Box::new(iterator)
+                    Either::Right(password_dictionary_reader_iter(dictionary_path))
                 }
             };
             // filter passwords by worker index
-            passwords_iter = filter_for_worker_index(passwords_iter, worker_count, index);
+            let passwords_iter = passwords_iter
+                .map_left(|iter| filter_for_worker_index(iter, worker_count, index))
+                .map_right(|iter| filter_for_worker_index(iter, worker_count, index));
 
             // AES info bindings
             let mut derived_key_len = 0;
@@ -95,18 +91,18 @@ pub fn password_checker(
             let mut verification_value: [u8; 2] = [0; 2];
 
             // setup file reader depending on the encryption method
-            let reader: Box<dyn ZipReader> = if let Some(aes_info) = aes_info {
+            let reader = if let Some(aes_info) = aes_info {
                 salt = aes_info.salt;
                 verification_value = aes_info.verification_value;
                 derived_key_len = aes_info.derived_key_length;
                 derived_key = vec![0; derived_key_len];
                 let file = fs::File::open(file_path).expect("File should exist");
                 // in case of AES we do not need to access the archive often, a buffer reader is enough
-                Box::new(BufReader::new(file))
+                Either::Left(BufReader::new(file))
             } else {
                 let zip_file = fs::read(file_path).expect("File should exist");
                 // in case of ZipCrypto, we load the file in memory as it will be accessed on each password
-                Box::new(Cursor::new(zip_file))
+                Either::Right(Cursor::new(zip_file))
             };
 
             // zip archive
@@ -193,8 +189,7 @@ mod tests {
         let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
-        let box_iter = Box::new(iter);
-        let mut filtered = filter_for_worker_index(box_iter, 1, 1);
+        let mut filtered = filter_for_worker_index(iter, 1, 1);
         assert_eq!(filtered.next(), Some("a".into()));
         assert_eq!(filtered.next(), Some("b".into()));
         assert_eq!(filtered.next(), Some("c".into()));
@@ -214,8 +209,7 @@ mod tests {
         let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
-        let box_iter = Box::new(iter);
-        let mut filtered = filter_for_worker_index(box_iter, 2, 1);
+        let mut filtered = filter_for_worker_index(iter, 2, 1);
         assert_eq!(filtered.next(), Some("a".into()));
         //assert_eq!(filtered.next(), Some("b".into()));
         assert_eq!(filtered.next(), Some("c".into()));
@@ -235,8 +229,7 @@ mod tests {
         let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
-        let box_iter = Box::new(iter);
-        let mut filtered = filter_for_worker_index(box_iter, 2, 2);
+        let mut filtered = filter_for_worker_index(iter, 2, 2);
         //assert_eq!(filtered.next(), Some("a".into()));
         assert_eq!(filtered.next(), Some("b".into()));
         //assert_eq!(filtered.next(), Some("c".into()));
@@ -256,8 +249,7 @@ mod tests {
         let iter = password_dictionary_reader_iter(PathBuf::from(
             "test-files/generated-passwords-lowercase.txt",
         ));
-        let box_iter = Box::new(iter);
-        let mut filtered = filter_for_worker_index(box_iter, 3, 1);
+        let mut filtered = filter_for_worker_index(iter, 3, 1);
         assert_eq!(filtered.next(), Some("a".into()));
         //assert_eq!(filtered.next(), Some("b".into()));
         //assert_eq!(filtered.next(), Some("c".into()));
