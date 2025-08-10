@@ -109,23 +109,23 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     }
 
     let password_dictionary: Option<&String> = matches.try_get_one("passwordDictionary")?;
-    if let Some(dict_path) = password_dictionary {
-        if !Path::new(&dict_path).is_file() {
-            return Err(CliArgumentError {
-                message: "'passwordDictionary' does not exist".to_string(),
-            });
-        }
+    if let Some(dict_path) = password_dictionary
+        && !Path::new(&dict_path).is_file()
+    {
+        return Err(CliArgumentError {
+            message: "'passwordDictionary' does not exist".to_string(),
+        });
     }
 
     let charset_choice: &String = matches.get_one("charset").expect("impossible");
 
     let charset_file: Option<&String> = matches.try_get_one("charsetFile")?;
-    if let Some(charset_file_path) = charset_file {
-        if !Path::new(&charset_file_path).is_file() {
-            return Err(CliArgumentError {
-                message: "'charsetFile' does not exist".to_string(),
-            });
-        }
+    if let Some(charset_file_path) = charset_file
+        && !Path::new(&charset_file_path).is_file()
+    {
+        return Err(CliArgumentError {
+            message: "'charsetFile' does not exist".to_string(),
+        });
     }
 
     let workers: Option<&usize> = matches.try_get_one("workers")?;
