@@ -32,6 +32,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - name: Check code formatting
         run: cargo fmt --all -- --check
       - name: Build
