@@ -11,7 +11,7 @@ keywords = ["zip", "archive", "password", "crack", "brute-force"]
 edition = "2024"
 
 [dependencies]
-zip = "5.1.1"
+zip = "6.0.0"
 pbkdf2 = "0.12.2"                                   # parallel version did not help the performance
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
