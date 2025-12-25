@@ -74,6 +74,6 @@ fn main_result() -> Result<(), FinderError> {
     match password {
         Some(password) => println!("Password found:{password}"),
         None => println!("Password not found"),
-    };
+    }
     Ok(())
 }

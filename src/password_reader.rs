@@ -62,7 +62,7 @@ impl Iterator for DictionaryReader {
                     // TODO explore using a lending iterator to avoid allocation
                     return Some(self.line_buffer.clone());
                 }
-                Err(_) => continue, // not a valid String, ignore
+                Err(_) => (), // not a valid String, ignore
             }
         }
     }
