@@ -16,7 +16,7 @@ pbkdf2 = "0.12.2"                                   # parallel version did not h
 hmac = { version = "0.12.1", features = ["reset"] }
 sha1 = "0.10.6"
 clap = { version = "4.5.58", features = ["cargo"] }
-indicatif = "0.18.3"
+indicatif = "0.18.4"
 thiserror = "2.0.18"
 num_cpus = "1.17.0"
 ahash = "0.8.12"
