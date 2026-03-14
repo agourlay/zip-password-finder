@@ -43,6 +43,7 @@ pub fn password_finder(
 
     // Fail early if the zip file is not valid
     let validated_zip = validate_zip(file_path, file_number)?;
+    let file_number = validated_zip.file_number;
     match &validated_zip.file_name {
         Some(file_name) => {
             progress_bar.println(format!("Targeting file '{file_name}' within the archive"));
@@ -143,6 +144,14 @@ mod tests {
         path: &str,
         max_password_len: usize,
     ) -> Result<Option<String>, FinderError> {
+        find_password_gen_with_file_number(path, max_password_len, 0)
+    }
+
+    fn find_password_gen_with_file_number(
+        path: &str,
+        max_password_len: usize,
+        file_number: usize,
+    ) -> Result<Option<String>, FinderError> {
         let strategy = GenPasswords {
             charset: charsets::preset_to_charset("l")?,
             min_password_len: 1,
@@ -150,7 +159,6 @@ mod tests {
             starting_password: None,
         };
         let workers = num_cpus::get_physical();
-        let file_number = 0;
         password_finder(
             path,
             workers,
@@ -227,5 +235,35 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(password, "abcd");
+    }
+
+    #[test]
+    fn find_password_multi_file_auto_detect() {
+        // index 0 is an unencrypted directory, auto-detection finds the encrypted file at index 1
+        let password =
+            find_password_gen_with_file_number("test-files/multi-file-with-dir.zip", 2, 0)
+                .unwrap()
+                .unwrap();
+        assert_eq!(password, "ab");
+    }
+
+    #[test]
+    fn find_password_multi_file_explicit_file_number() {
+        // explicitly selecting index 1 (the encrypted file)
+        let password =
+            find_password_gen_with_file_number("test-files/multi-file-with-dir.zip", 2, 1)
+                .unwrap()
+                .unwrap();
+        assert_eq!(password, "ab");
+    }
+
+    #[test]
+    fn find_password_multi_file_out_of_range_index() {
+        // out-of-range index should auto-detect the first encrypted file
+        let password =
+            find_password_gen_with_file_number("test-files/multi-file-with-dir.zip", 2, 99)
+                .unwrap()
+                .unwrap();
+        assert_eq!(password, "ab");
     }
 }
