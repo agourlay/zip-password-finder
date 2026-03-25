@@ -78,4 +78,22 @@ mod tests {
         let iter = password_dictionary_reader_iter(path);
         assert_eq!(iter.count(), 18278);
     }
+
+    #[test]
+    fn password_count_matches_iterator_count() {
+        let path = PathBuf::from("test-files/generated-passwords-lowercase.txt");
+        let count = password_reader_count(path).unwrap();
+        assert_eq!(count, 18278);
+    }
+
+    #[test]
+    fn dictionary_reader_trims_lines() {
+        let path = PathBuf::from("test-files/generated-passwords-lowercase.txt");
+        let mut iter = password_dictionary_reader_iter(path);
+        let first = iter.next().unwrap();
+        // should not contain trailing newline or carriage return
+        assert!(!first.ends_with('\n'));
+        assert!(!first.ends_with('\r'));
+        assert_eq!(first, "a");
+    }
 }

@@ -1,6 +1,7 @@
 use crate::charsets::{CharsetChoice, charset_from_choice};
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
+use crate::password_mask::{CustomCharsets, parse_custom_charset};
 use clap::{Arg, Command};
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use std::path::Path;
@@ -84,6 +85,47 @@ fn command() -> Command {
                 .short('s')
                 .required(false),
         )
+        .arg(
+            Arg::new("mask")
+                .help("mask pattern for mask attack (e.g. '?l?l?l?d?d')")
+                .long_help("mask pattern for mask attack (e.g. '?l?l?l?d?d' for 3 lowercase + 2 digits).\n\nAvailable tokens:\n  ?l  lowercase letters [a-z]\n  ?u  uppercase letters [A-Z]\n  ?d  digits [0-9]\n  ?s  symbols\n  ?a  all printable (?l?u?d?s)\n  ?h  lowercase hex [0-9a-f]\n  ?H  uppercase hex [0-9A-F]\n  ?1  custom charset 1 (--customCharset1)\n  ?2  custom charset 2 (--customCharset2)\n  ?3  custom charset 3 (--customCharset3)\n  ?4  custom charset 4 (--customCharset4)\n  ??  literal '?'\n\nAny other character is treated as a literal.")
+                .long("mask")
+                .short('m')
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("customCharset1")
+                .help("custom charset 1 for mask attack, referenced as ?1 (e.g. 'aeiou' or '?l?d')")
+                .long("customCharset1")
+                .short('1')
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("customCharset2")
+                .help("custom charset 2 for mask attack, referenced as ?2")
+                .long("customCharset2")
+                .short('2')
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("customCharset3")
+                .help("custom charset 3 for mask attack, referenced as ?3")
+                .long("customCharset3")
+                .short('3')
+                .num_args(1)
+                .required(false),
+        )
+        .arg(
+            Arg::new("customCharset4")
+                .help("custom charset 4 for mask attack, referenced as ?4")
+                .long("customCharset4")
+                .short('4')
+                .num_args(1)
+                .required(false),
+        )
 }
 
 pub struct Arguments {
@@ -95,6 +137,8 @@ pub struct Arguments {
     pub file_number: usize,
     pub password_dictionary: Option<String>,
     pub starting_password: Option<String>,
+    pub mask: Option<String>,
+    pub custom_charsets: CustomCharsets,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
@@ -164,12 +208,47 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         CharsetChoice::Preset(charset_choice.clone())
     };
 
+    let mask: Option<&String> = matches.try_get_one("mask")?;
+
+    // parse custom charsets
+    let custom_charset_names = [
+        "customCharset1",
+        "customCharset2",
+        "customCharset3",
+        "customCharset4",
+    ];
+    let mut custom_charsets: CustomCharsets = [None, None, None, None];
+    for (i, name) in custom_charset_names.iter().enumerate() {
+        let value: Option<&String> = matches.try_get_one(name)?;
+        if let Some(definition) = value {
+            if mask.is_none() {
+                return Err(CliArgumentError {
+                    message: format!("'--{name}' can only be used with --mask"),
+                });
+            }
+            custom_charsets[i] = Some(parse_custom_charset(definition)?);
+        }
+    }
+
+    // validate that mask, dictionary, and starting_password are not used together
+    if mask.is_some() && password_dictionary.is_some() {
+        return Err(CliArgumentError {
+            message: "'mask' cannot be used with a dictionary file".to_string(),
+        });
+    }
+
     let starting_password: Option<&String> = matches.try_get_one("startingPassword")?;
     if let Some(starting_password) = starting_password {
         // can't use with dictionary for now (a bit annoying to lookup in dictionary to start from a given word)
         if password_dictionary.is_some() {
             return Err(CliArgumentError {
                 message: "'startingPassword' cannot be used with a dictionary file".to_string(),
+            });
+        }
+
+        if mask.is_some() {
+            return Err(CliArgumentError {
+                message: "'startingPassword' cannot be used with mask attack".to_string(),
             });
         }
 
@@ -201,6 +280,8 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         file_number: *file_number,
         password_dictionary: password_dictionary.cloned(),
         starting_password: starting_password.cloned(),
+        mask: mask.cloned(),
+        custom_charsets,
     })
 }
 

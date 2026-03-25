@@ -10,12 +10,25 @@ The design of this tool is described in details in the following blog articles:
 
 ## Features
 
-- Supports both ZipCrypto and AES encryption.
-- Leverages multiple threads to speed up the process
-- Dictionary attack to test passwords from a dictionary text file (one word per line)
-- Brute force to generate all passwords for a given charset and a password length range
+- Supports both ZipCrypto and AES encryption
+- Multi-threaded, using all physical CPU cores by default
+- Three attack modes: brute force, dictionary, and mask attack
+- Graceful interruption with Ctrl-C, displaying the last password tested
+- Resume brute force from a specific password with `--startingPassword`
+- Automatic detection of encrypted files within multi-file archives
+- Progress bar with throughput and ETA
 
-The available charsets for the password generation are:
+## Attack modes
+
+### Brute force (default)
+
+Generates all passwords for a given charset and password length range. This is the default mode when no dictionary or mask is provided.
+
+```bash
+zip-password-finder -i archive.zip -c lud --minPasswordLen 1 --maxPasswordLen 6
+```
+
+The available charset presets are:
 
 ```
   l | abcdefghijklmnopqrstuvwxyz [a-z]
@@ -26,9 +39,68 @@ The available charsets for the password generation are:
   s | «space»!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 ```
 
-Alternatively, you can provide a custom charset file with the `--charsetFile` option.
+Presets can be combined, e.g. `lud` (the default) uses lowercase + uppercase + digits.
 
-It accepts a file path for a `txt` file containing a single line of characters to use for the password generation.
+Alternatively, a custom charset file can be provided with `--charsetFile`. It should be a text file containing a single line of characters to use for the generation.
+
+To resume an interrupted brute force search, use `--startingPassword` to skip ahead:
+
+```bash
+zip-password-finder -i archive.zip --startingPassword "abc"
+```
+
+### Dictionary
+
+Tests passwords from a text file, one word per line.
+
+```bash
+zip-password-finder -i archive.zip -p wordlist.txt
+```
+
+### Mask attack
+
+Generates passwords matching a pattern where each position has its own charset. This is useful when you know part of the password structure (e.g. starts with uppercase, ends with digits).
+
+```bash
+zip-password-finder -i archive.zip --mask '?u?l?l?l?d?d'
+```
+
+The available mask tokens are:
+
+```
+  ?l | lowercase letters [a-z]
+  ?u | uppercase letters [A-Z]
+  ?d | digits [0-9]
+  ?s | symbols
+  ?a | all printable (lowercase + uppercase + digits + symbols)
+  ?h | lowercase hex [0-9a-f]
+  ?H | uppercase hex [0-9A-F]
+  ?1 | custom charset 1 (--customCharset1)
+  ?2 | custom charset 2 (--customCharset2)
+  ?3 | custom charset 3 (--customCharset3)
+  ?4 | custom charset 4 (--customCharset4)
+  ?? | literal '?'
+```
+
+Any other character in the mask is treated as a literal.
+
+Custom charsets are defined with `--customCharset1` through `--customCharset4` and can contain literal characters and/or built-in tokens. For example, `--customCharset1 "aeiou"` defines vowels, and `--customCharset1 "?l?d"` defines lowercase letters + digits.
+
+Examples:
+
+```bash
+# 3 lowercase letters followed by 2 digits
+zip-password-finder -i archive.zip --mask '?l?l?l?d?d'
+
+# known prefix "pass" followed by 4 digits
+zip-password-finder -i archive.zip --mask 'pass?d?d?d?d'
+
+# uppercase, 4 lowercase, then a symbol
+zip-password-finder -i archive.zip --mask '?u?l?l?l?l?s'
+
+# custom charset: 2 vowels followed by a digit
+zip-password-finder -i archive.zip -1 "aeiou" --mask '?1?1?d'
+```
 
 ## Installation
 
@@ -70,6 +142,11 @@ Options:
       --maxPasswordLen <maxPasswordLen>          maximum password length [default: 10]
       --fileNumber <fileNumber>                  file number in the zip archive [default: 0]
   -s, --startingPassword <startingPassword>      password to start from
+  -m, --mask <mask>                              mask pattern for mask attack (e.g. '?l?l?l?d?d')
+  -1, --customCharset1 <customCharset1>          custom charset 1 for mask attack, referenced as ?1
+  -2, --customCharset2 <customCharset2>          custom charset 2 for mask attack, referenced as ?2
+  -3, --customCharset3 <customCharset3>          custom charset 3 for mask attack, referenced as ?3
+  -4, --customCharset4 <customCharset4>          custom charset 4 for mask attack, referenced as ?4
   -h, --help                                     Print help
   -V, --version                                  Print version
 ```
@@ -80,11 +157,11 @@ For AES make sure to use a CPU with `SHA` instructions (Intel Sandy Bridge or ne
 
 Native builds tend to perform better in general.
 
-```RUSTFLAGS="-C target-cpu=native" cargo build --release```
+```bash
+RUSTFLAGS="-C target-cpu=native" cargo build --release
+```
 
-In general this tool seems to suffer from contention as the number of workers increases which makes it impractical for non-trivial passwords.
-
-It makes sense to use a number of workers equal to the number of physical cores.
+The number of workers defaults to the number of physical CPU cores. You can override this with `--workers`, but using more workers than physical cores typically does not help due to contention.
 
 E.g. of scalability with an 8 core CPU with 16 threads as the number of workers increases:
 

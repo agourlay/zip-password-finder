@@ -1,5 +1,6 @@
 use crate::password_finder::Strategy;
 use crate::password_gen::password_generator_iter;
+use crate::password_mask::mask_password_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::zip_utils::AesInfo;
 use either::Either;
@@ -75,14 +76,24 @@ pub fn password_checker(
                         pb,
                     ))
                 }
-                Strategy::PasswordFile(dictionary_path) => {
-                    Either::Right(password_dictionary_reader_iter(dictionary_path))
+                Strategy::PasswordFile(dictionary_path) => Either::Right(Either::Left(
+                    password_dictionary_reader_iter(dictionary_path),
+                )),
+                Strategy::MaskGenPasswords { mask } => {
+                    Either::Right(Either::Right(mask_password_iter(mask)))
                 }
             };
-            // filter passwords by worker index
+            // Filter passwords by worker index.
+            // The iterator type is Either<GenPasswords, Either<Dictionary, Mask>> (nested)
+            // to support 3 strategies with zero-cost static dispatch instead of Box<dyn Iterator>.
+            // We must apply filter_for_worker_index to all 3 variants via nested map_left/map_right.
             let passwords_iter = passwords_iter
                 .map_left(|iter| filter_for_worker_index(iter, worker_count, index))
-                .map_right(|iter| filter_for_worker_index(iter, worker_count, index));
+                .map_right(|either| {
+                    either
+                        .map_left(|iter| filter_for_worker_index(iter, worker_count, index))
+                        .map_right(|iter| filter_for_worker_index(iter, worker_count, index))
+                });
 
             // AES info bindings
             let mut derived_key_len = 0;

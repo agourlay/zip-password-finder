@@ -299,6 +299,38 @@ mod tests {
     }
 
     #[test]
+    fn password_count_single_length() {
+        assert_eq!(password_generator_count(3, 1, 1), 3);
+        assert_eq!(password_generator_count(26, 1, 1), 26);
+        assert_eq!(password_generator_count(10, 3, 3), 1000);
+    }
+
+    #[test]
+    fn password_count_range() {
+        // charset size 3, lengths 1-2: 3 + 9 = 12
+        assert_eq!(password_generator_count(3, 1, 2), 12);
+        // charset size 2, lengths 1-3: 2 + 4 + 8 = 14
+        assert_eq!(password_generator_count(2, 1, 3), 14);
+    }
+
+    #[test]
+    fn generate_password_single_char_charset() {
+        let mut iter = password_generator_iter(vec!['a'], 1, 3, None, ProgressBar::hidden());
+        assert_eq!(iter.next(), Some("a".into()));
+        assert_eq!(iter.next(), Some("aa".into()));
+        assert_eq!(iter.next(), Some("aaa".into()));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn generate_password_size_hint() {
+        let mut iter = password_generator_iter(vec!['a', 'b'], 1, 2, None, ProgressBar::hidden());
+        assert_eq!(iter.size_hint(), (6, Some(6))); // 2 + 4 = 6
+        iter.next();
+        assert_eq!(iter.size_hint(), (5, Some(5)));
+    }
+
+    #[test]
     fn generate_password_large() {
         let mut iter = password_generator_iter(
             charset_lowercase_letters(),

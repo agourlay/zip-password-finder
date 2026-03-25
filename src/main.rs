@@ -3,16 +3,18 @@ mod charsets;
 mod finder_errors;
 mod password_finder;
 mod password_gen;
+mod password_mask;
 mod password_reader;
 mod password_worker;
 mod zip_utils;
 
 use crate::args::{Arguments, get_args};
 use crate::finder_errors::FinderError;
-use crate::password_finder::Strategy::{GenPasswords, PasswordFile};
+use crate::password_finder::Strategy::{GenPasswords, MaskGenPasswords, PasswordFile};
 use crate::password_finder::password_finder;
 
 use crate::charsets::charset_from_choice;
+use crate::password_mask::parse_mask;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,11 +41,16 @@ fn main_result() -> Result<(), FinderError> {
         file_number,
         password_dictionary,
         starting_password,
+        mask,
+        custom_charsets,
     } = get_args()?;
 
     let strategy = if let Some(dict_path) = password_dictionary {
         let path = Path::new(&dict_path);
         PasswordFile(path.to_path_buf())
+    } else if let Some(mask_pattern) = mask {
+        let mask = parse_mask(&mask_pattern, &custom_charsets)?;
+        MaskGenPasswords { mask }
     } else {
         let charset = charset_from_choice(&charset_choice)?;
         GenPasswords {

@@ -136,4 +136,29 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_invalid_preset_char() {
+        let result = preset_to_charset("x");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_charset_from_choice_deduplicates() {
+        // 'h' (hex: 0-9a-f) and 'd' (digits: 0-9) overlap on digits
+        let charset = charset_from_choice(&CharsetChoice::Preset("hd".to_string())).unwrap();
+        // charset_from_choice sorts and deduplicates
+        let mut expected = charset_lowercase_hex();
+        expected.extend(charset_digits());
+        expected.sort_unstable();
+        expected.dedup();
+        assert_eq!(charset, expected);
+        assert_eq!(charset.len(), 16); // 0-9 + a-f, no duplicates
+    }
+
+    #[test]
+    fn test_charset_from_nonexistent_file() {
+        let result = charset_from_file(&"nonexistent-file.txt".to_string());
+        assert!(result.is_err());
+    }
 }

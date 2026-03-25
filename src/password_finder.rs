@@ -1,9 +1,10 @@
 use crate::finder_errors::FinderError;
 use crate::password_gen::password_generator_count;
+use crate::password_mask::{ParsedMask, mask_password_count};
 use crate::password_reader::password_reader_count;
 use crate::password_worker::password_checker;
 use crate::zip_utils::validate_zip;
-use crate::{GenPasswords, PasswordFile};
+use crate::{GenPasswords, MaskGenPasswords, PasswordFile};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -19,6 +20,9 @@ pub enum Strategy {
         min_password_len: usize,
         max_password_len: usize,
         starting_password: Option<String>,
+    },
+    MaskGenPasswords {
+        mask: ParsedMask,
     },
 }
 
@@ -89,6 +93,11 @@ pub fn password_finder(
             ));
             (total, 0)
         }
+        MaskGenPasswords { mask } => {
+            let total = mask_password_count(mask);
+            progress_bar.println(format!("Using mask attack with {total} candidates."));
+            (total, 0)
+        }
     };
 
     // set progress bar length according to the total number of passwords
@@ -139,6 +148,7 @@ pub fn password_finder(
 mod tests {
     use super::*;
     use crate::charsets;
+    use crate::password_mask::parse_mask;
 
     fn find_password_gen(
         path: &str,
@@ -265,5 +275,52 @@ mod tests {
                 .unwrap()
                 .unwrap();
         assert_eq!(password, "ab");
+    }
+
+    fn find_password_mask(path: &str, mask_pattern: &str) -> Result<Option<String>, FinderError> {
+        let no_custom = [None, None, None, None];
+        let mask = parse_mask(mask_pattern, &no_custom)?;
+        let strategy = MaskGenPasswords { mask };
+        let workers = num_cpus::get_physical();
+        let file_number = 0;
+        password_finder(
+            path,
+            workers,
+            file_number,
+            &strategy,
+            Arc::new(AtomicBool::new(false)),
+        )
+    }
+
+    #[test]
+    fn find_two_letters_password_mask() {
+        let password = find_password_mask("test-files/2.test.txt.zip", "?l?l")
+            .unwrap()
+            .unwrap();
+        assert_eq!(password, "ab");
+    }
+
+    #[test]
+    fn find_three_letters_password_mask() {
+        let password = find_password_mask("test-files/3.test.txt.zip", "?l?l?l")
+            .unwrap()
+            .unwrap();
+        assert_eq!(password, "abc");
+    }
+
+    #[test]
+    fn find_password_mask_with_literal_prefix() {
+        // password is "ab", use mask "a?l" to find it with a literal 'a' prefix
+        let password = find_password_mask("test-files/2.test.txt.zip", "a?l")
+            .unwrap()
+            .unwrap();
+        assert_eq!(password, "ab");
+    }
+
+    #[test]
+    fn fail_to_find_password_mask_wrong_pattern() {
+        // password is "ab" but mask only generates digits
+        let password = find_password_mask("test-files/2.test.txt.zip", "?d?d").unwrap();
+        assert!(password.is_none());
     }
 }
