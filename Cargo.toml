@@ -12,9 +12,9 @@ edition = "2024"
 
 [dependencies]
 zip = "8.4.0"
-pbkdf2 = "0.12.2"                                   # parallel version did not help the performance
-hmac = { version = "0.12.1", features = ["reset"] }
-sha1 = "0.10.6"
+pbkdf2 = "0.13.0-rc.10"                               # parallel version did not help the performance
+hmac = "0.13.0-rc.6"
+sha1 = "0.11.0"
 clap = { version = "4.6.0", features = ["cargo"] }
 indicatif = "0.18.4"
 thiserror = "2.0.18"
