@@ -159,8 +159,7 @@ impl Iterator for PasswordGenerator {
                     self.charset.get(self.charset_len - 1).unwrap()
                 } else {
                     let prev_char = *self.password.get(at_prev).unwrap();
-                    let prev_index_charset =
-                        self.charset.iter().position(|&c| c == prev_char).unwrap();
+                    let prev_index_charset = *self.charset_indices.get(&prev_char).unwrap();
                     self.charset.get(prev_index_charset + 1).unwrap()
                 };
 
