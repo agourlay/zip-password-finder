@@ -18,13 +18,12 @@ use zip::ZipArchive;
 use zip::result::ZipError;
 
 pub fn filter_for_worker_index(
-    passwords: impl Iterator<Item = String>,
+    passwords: impl Iterator<Item = Vec<u8>>,
     worker_count: usize,
     index: usize,
-) -> impl Iterator<Item = String> {
+) -> impl Iterator<Item = Vec<u8>> {
     if worker_count > 1 {
         Either::Left(passwords.enumerate().filter_map(move |(i, line)| {
-            //eprintln!("thread:{} index:{} word:{} module:{}, pass:{}", index, i, line, i % worker_count, i % worker_count == index - 1);
             if i % worker_count == index - 1 {
                 Some(line)
             } else {
@@ -122,13 +121,12 @@ pub fn password_checker(
 
             // processing loop
             let mut processed_delta: u64 = 0;
-            for password in passwords_iter {
-                let password_bytes = password.as_bytes();
+            for password_bytes in passwords_iter {
                 let mut potential_match = true;
                 // process AES KEY
                 if derived_key_len != 0 {
                     // use PBKDF2 with HMAC-Sha1 to derive the key
-                    pbkdf2::pbkdf2::<Hmac<Sha1>>(password_bytes, &salt, 1000, &mut derived_key)
+                    pbkdf2::pbkdf2::<Hmac<Sha1>>(&password_bytes, &salt, 1000, &mut derived_key)
                         .expect("PBKDF2 should not fail");
                     let pwd_verify = &derived_key[derived_key_len - 2..];
                     // the last 2 bytes should equal the password verification value
@@ -141,7 +139,7 @@ pub fn password_checker(
                     // This function sometimes accepts wrong password. This is because the ZIP spec only allows us to check for a 1/256 chance that the password is correct.
                     // There are many passwords out there that will also pass the validity checks we are able to perform.
                     // This is a weakness of the ZipCrypto algorithm, due to its fairly primitive approach to cryptography.
-                    match archive.by_index_decrypt(file_number, password_bytes) {
+                    match archive.by_index_decrypt(file_number, &password_bytes) {
                         // invalid password
                         Err(ZipError::InvalidPassword) => (),
                         // unexpected error - stop worker
@@ -158,9 +156,12 @@ pub fn password_checker(
                                 Ok(data_read) => {
                                     // if we read all the bytes, we have a match
                                     if data_read == zip_size {
+                                        // Convert bytes to String only on success
+                                        let password_str =
+                                            String::from_utf8_lossy(&password_bytes).into_owned();
                                         // Send password and continue processing while waiting for signal
                                         send_password_found
-                                            .send(password.clone())
+                                            .send(password_str)
                                             .expect("Send found password should not fail");
                                     }
                                 }
@@ -179,7 +180,9 @@ pub fn password_checker(
                     // check if we should stop
                     if stop_signal.load(Ordering::Relaxed) {
                         if first_worker {
-                            progress_bar.println(format!("Last password processed:{password}"));
+                            let password_display = String::from_utf8_lossy(&password_bytes);
+                            progress_bar
+                                .println(format!("Last password processed:{password_display}"));
                         }
                         break;
                     }
@@ -201,18 +204,18 @@ mod tests {
             "test-files/generated-passwords-lowercase.txt",
         ));
         let mut filtered = filter_for_worker_index(iter, 1, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        assert_eq!(filtered.next(), Some("b".into()));
-        assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        assert_eq!(filtered.next(), Some("e".into()));
-        assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        assert_eq!(filtered.next(), Some("h".into()));
-        assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        assert_eq!(filtered.next(), Some("k".into()));
-        assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(b"a".to_vec()));
+        assert_eq!(filtered.next(), Some(b"b".to_vec()));
+        assert_eq!(filtered.next(), Some(b"c".to_vec()));
+        assert_eq!(filtered.next(), Some(b"d".to_vec()));
+        assert_eq!(filtered.next(), Some(b"e".to_vec()));
+        assert_eq!(filtered.next(), Some(b"f".to_vec()));
+        assert_eq!(filtered.next(), Some(b"g".to_vec()));
+        assert_eq!(filtered.next(), Some(b"h".to_vec()));
+        assert_eq!(filtered.next(), Some(b"i".to_vec()));
+        assert_eq!(filtered.next(), Some(b"j".to_vec()));
+        assert_eq!(filtered.next(), Some(b"k".to_vec()));
+        assert_eq!(filtered.next(), Some(b"l".to_vec()));
     }
 
     #[test]
@@ -221,18 +224,18 @@ mod tests {
             "test-files/generated-passwords-lowercase.txt",
         ));
         let mut filtered = filter_for_worker_index(iter, 2, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        //assert_eq!(filtered.next(), Some("b".into()));
-        assert_eq!(filtered.next(), Some("c".into()));
-        //assert_eq!(filtered.next(), Some("d".into()));
-        assert_eq!(filtered.next(), Some("e".into()));
-        //assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        //assert_eq!(filtered.next(), Some("h".into()));
-        assert_eq!(filtered.next(), Some("i".into()));
-        //assert_eq!(filtered.next(), Some("j".into()));
-        assert_eq!(filtered.next(), Some("k".into()));
-        //assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(b"a".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"b".to_vec()));
+        assert_eq!(filtered.next(), Some(b"c".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"d".to_vec()));
+        assert_eq!(filtered.next(), Some(b"e".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"f".to_vec()));
+        assert_eq!(filtered.next(), Some(b"g".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"h".to_vec()));
+        assert_eq!(filtered.next(), Some(b"i".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"j".to_vec()));
+        assert_eq!(filtered.next(), Some(b"k".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"l".to_vec()));
     }
 
     #[test]
@@ -241,18 +244,18 @@ mod tests {
             "test-files/generated-passwords-lowercase.txt",
         ));
         let mut filtered = filter_for_worker_index(iter, 2, 2);
-        //assert_eq!(filtered.next(), Some("a".into()));
-        assert_eq!(filtered.next(), Some("b".into()));
-        //assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        //assert_eq!(filtered.next(), Some("e".into()));
-        assert_eq!(filtered.next(), Some("f".into()));
-        //assert_eq!(filtered.next(), Some("g".into()));
-        assert_eq!(filtered.next(), Some("h".into()));
-        //assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        //assert_eq!(filtered.next(), Some("k".into()));
-        assert_eq!(filtered.next(), Some("l".into()));
+        //assert_eq!(filtered.next(), Some(b"a".to_vec()));
+        assert_eq!(filtered.next(), Some(b"b".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"c".to_vec()));
+        assert_eq!(filtered.next(), Some(b"d".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"e".to_vec()));
+        assert_eq!(filtered.next(), Some(b"f".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"g".to_vec()));
+        assert_eq!(filtered.next(), Some(b"h".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"i".to_vec()));
+        assert_eq!(filtered.next(), Some(b"j".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"k".to_vec()));
+        assert_eq!(filtered.next(), Some(b"l".to_vec()));
     }
 
     #[test]
@@ -261,17 +264,17 @@ mod tests {
             "test-files/generated-passwords-lowercase.txt",
         ));
         let mut filtered = filter_for_worker_index(iter, 3, 1);
-        assert_eq!(filtered.next(), Some("a".into()));
-        //assert_eq!(filtered.next(), Some("b".into()));
-        //assert_eq!(filtered.next(), Some("c".into()));
-        assert_eq!(filtered.next(), Some("d".into()));
-        //assert_eq!(filtered.next(), Some("e".into()));
-        //assert_eq!(filtered.next(), Some("f".into()));
-        assert_eq!(filtered.next(), Some("g".into()));
-        //assert_eq!(filtered.next(), Some("h".into()));
-        //assert_eq!(filtered.next(), Some("i".into()));
-        assert_eq!(filtered.next(), Some("j".into()));
-        //assert_eq!(filtered.next(), Some("k".into()));
-        //assert_eq!(filtered.next(), Some("l".into()));
+        assert_eq!(filtered.next(), Some(b"a".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"b".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"c".to_vec()));
+        assert_eq!(filtered.next(), Some(b"d".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"e".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"f".to_vec()));
+        assert_eq!(filtered.next(), Some(b"g".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"h".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"i".to_vec()));
+        assert_eq!(filtered.next(), Some(b"j".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"k".to_vec()));
+        //assert_eq!(filtered.next(), Some(b"l".to_vec()));
     }
 }

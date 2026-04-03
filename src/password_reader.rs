@@ -22,13 +22,13 @@ pub fn password_reader_count(file_path: PathBuf) -> Result<usize, std::io::Error
     Ok(total_password_count)
 }
 
-pub fn password_dictionary_reader_iter(file_path: PathBuf) -> impl Iterator<Item = String> {
+pub fn password_dictionary_reader_iter(file_path: PathBuf) -> impl Iterator<Item = Vec<u8>> {
     DictionaryReader::new(file_path)
 }
 
 struct DictionaryReader {
     reader: BufReader<File>,
-    line_buffer: String,
+    line_buffer: Vec<u8>,
 }
 
 impl DictionaryReader {
@@ -37,32 +37,31 @@ impl DictionaryReader {
         let reader = BufReader::new(file);
         Self {
             reader,
-            line_buffer: String::new(),
+            line_buffer: Vec::new(),
         }
     }
 }
 
 impl Iterator for DictionaryReader {
-    type Item = String;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             self.line_buffer.clear();
-            let res = self.reader.read_line(&mut self.line_buffer);
+            let res = self.reader.read_until(b'\n', &mut self.line_buffer);
             match res {
                 Ok(0) => return None,
                 Ok(_) => {
-                    // cleanup line
-                    if self.line_buffer.ends_with('\n') {
+                    // cleanup line endings
+                    if self.line_buffer.last() == Some(&b'\n') {
                         self.line_buffer.pop();
-                        if self.line_buffer.ends_with('\r') {
+                        if self.line_buffer.last() == Some(&b'\r') {
                             self.line_buffer.pop();
                         }
                     }
-                    // TODO explore using a lending iterator to avoid allocation
                     return Some(self.line_buffer.clone());
                 }
-                Err(_) => (), // not a valid String, ignore
+                Err(_) => continue,
             }
         }
     }
@@ -92,8 +91,8 @@ mod tests {
         let mut iter = password_dictionary_reader_iter(path);
         let first = iter.next().unwrap();
         // should not contain trailing newline or carriage return
-        assert!(!first.ends_with('\n'));
-        assert!(!first.ends_with('\r'));
-        assert_eq!(first, "a");
+        assert!(!first.ends_with(b"\n"));
+        assert!(!first.ends_with(b"\r"));
+        assert_eq!(first, b"a");
     }
 }

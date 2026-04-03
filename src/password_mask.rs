@@ -179,17 +179,17 @@ impl MaskPasswordGenerator {
         }
     }
 
-    fn current_password(&self) -> String {
+    fn current_password(&self) -> Vec<u8> {
         self.indices
             .iter()
             .enumerate()
-            .map(|(pos, &idx)| self.positions[pos][idx])
+            .map(|(pos, &idx)| self.positions[pos][idx] as u8)
             .collect()
     }
 }
 
 impl Iterator for MaskPasswordGenerator {
-    type Item = String;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -225,7 +225,7 @@ impl Iterator for MaskPasswordGenerator {
     }
 }
 
-pub fn mask_password_iter(mask: ParsedMask) -> impl Iterator<Item = String> {
+pub fn mask_password_iter(mask: ParsedMask) -> impl Iterator<Item = Vec<u8>> {
     MaskPasswordGenerator::new(mask)
 }
 
@@ -301,39 +301,39 @@ mod tests {
     #[test]
     fn generate_small_mask() {
         let mask = parse_mask("?d", &NO_CUSTOM).unwrap();
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 10);
-        assert_eq!(passwords[0], "0");
-        assert_eq!(passwords[9], "9");
+        assert_eq!(passwords[0], b"0");
+        assert_eq!(passwords[9], b"9");
     }
 
     #[test]
     fn generate_two_digit_mask() {
         let mask = parse_mask("?d?d", &NO_CUSTOM).unwrap();
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 100);
-        assert_eq!(passwords[0], "00");
-        assert_eq!(passwords[1], "01");
-        assert_eq!(passwords[9], "09");
-        assert_eq!(passwords[10], "10");
-        assert_eq!(passwords[99], "99");
+        assert_eq!(passwords[0], b"00");
+        assert_eq!(passwords[1], b"01");
+        assert_eq!(passwords[9], b"09");
+        assert_eq!(passwords[10], b"10");
+        assert_eq!(passwords[99], b"99");
     }
 
     #[test]
     fn generate_literal_prefix_mask() {
         let mask = parse_mask("ab?d", &NO_CUSTOM).unwrap();
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 10);
-        assert_eq!(passwords[0], "ab0");
-        assert_eq!(passwords[9], "ab9");
+        assert_eq!(passwords[0], b"ab0");
+        assert_eq!(passwords[9], b"ab9");
     }
 
     #[test]
     fn generate_all_literals() {
         let mask = parse_mask("hello", &NO_CUSTOM).unwrap();
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 1);
-        assert_eq!(passwords[0], "hello");
+        assert_eq!(passwords[0], b"hello");
     }
 
     #[test]
@@ -411,14 +411,14 @@ mod tests {
     fn mask_with_multiple_custom_charsets() {
         let custom: CustomCharsets = [Some(vec!['a', 'b']), Some(vec!['1', '2', '3']), None, None];
         let mask = parse_mask("?1?2", &custom).unwrap();
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 6); // 2 * 3
-        assert_eq!(passwords[0], "a1");
-        assert_eq!(passwords[1], "a2");
-        assert_eq!(passwords[2], "a3");
-        assert_eq!(passwords[3], "b1");
-        assert_eq!(passwords[4], "b2");
-        assert_eq!(passwords[5], "b3");
+        assert_eq!(passwords[0], b"a1");
+        assert_eq!(passwords[1], b"a2");
+        assert_eq!(passwords[2], b"a3");
+        assert_eq!(passwords[3], b"b1");
+        assert_eq!(passwords[4], b"b2");
+        assert_eq!(passwords[5], b"b3");
     }
 
     #[test]
@@ -471,10 +471,10 @@ mod tests {
         ];
         let mask = parse_mask("?1?2?3?4", &custom).unwrap();
         assert_eq!(mask_password_count(&mask), 12); // 2 * 2 * 1 * 3
-        let passwords: Vec<String> = mask_password_iter(mask).collect();
+        let passwords: Vec<Vec<u8>> = mask_password_iter(mask).collect();
         assert_eq!(passwords.len(), 12);
-        assert_eq!(passwords[0], "a1x!");
-        assert_eq!(passwords[11], "b2x#");
+        assert_eq!(passwords[0], b"a1x!");
+        assert_eq!(passwords[11], b"b2x#");
     }
 
     #[test]

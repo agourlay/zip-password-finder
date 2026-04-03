@@ -1,4 +1,3 @@
-use ahash::AHashMap;
 use indicatif::ProgressBar;
 
 // compute the number of passwords to generate for range [min_size, max_size]
@@ -34,17 +33,15 @@ pub fn password_count_already_generated(
 }
 
 struct PasswordGenerator {
-    charset: Vec<char>,
-    charset_indices: AHashMap<char, usize>,
+    charset: Vec<u8>,
+    // Direct lookup table: byte value -> index in charset (avoids HashMap hashing)
+    charset_lookup: [u8; 128],
     charset_len: usize,
-    charset_first: char,
-    charset_last: char,
+    charset_last_idx: u8,
     max_size: usize,
-    current_len: usize,
-    current_index: usize,
     generated_count: usize,
     total_to_generate: usize,
-    password: Vec<char>,
+    password: Vec<u8>,
     progress_bar: ProgressBar,
 }
 
@@ -56,21 +53,21 @@ impl PasswordGenerator {
         starting_password: Option<String>,
         progress_bar: ProgressBar,
     ) -> Self {
-        let charset_len = charset.len();
-        let charset_first = *charset.first().expect("charset non empty");
-        let charset_last = *charset.last().expect("charset non empty");
+        let charset_bytes: Vec<u8> = charset.iter().map(|&c| c as u8).collect();
+        let charset_len = charset_bytes.len();
 
-        // pre-compute charset indices
-        let charset_indices = charset
-            .iter()
-            .enumerate()
-            .map(|(i, c)| (*c, i))
-            .collect::<AHashMap<char, usize>>();
+        // Build direct lookup table: byte -> index in charset
+        let mut charset_lookup = [0u8; 128];
+        for (i, &b) in charset_bytes.iter().enumerate() {
+            charset_lookup[b as usize] = i as u8;
+        }
 
-        let mut password = vec![charset_first; min_size];
+        let charset_last_idx = (charset_len - 1) as u8;
+
+        let mut password = vec![charset_bytes[0]; min_size];
         let mut total_to_generate = password_generator_count(charset_len, min_size, max_size);
         if let Some(starting_password) = starting_password {
-            password = starting_password.chars().collect();
+            password = starting_password.bytes().collect();
             let password_len = password.len();
             let already_generated_count =
                 password_count_already_generated(&charset, min_size, &starting_password);
@@ -87,19 +84,12 @@ impl PasswordGenerator {
             ));
         }
 
-        // init current cursors
-        let current_len = password.len();
-        let current_index = current_len - 1;
-
         Self {
-            charset,
-            charset_indices,
+            charset: charset_bytes,
+            charset_lookup,
             charset_len,
-            charset_first,
-            charset_last,
+            charset_last_idx,
             max_size,
-            current_len,
-            current_index,
             generated_count: 0,
             total_to_generate,
             password,
@@ -109,7 +99,7 @@ impl PasswordGenerator {
 }
 
 impl Iterator for PasswordGenerator {
-    type Item = String;
+    type Item = Vec<u8>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.password.len() > self.max_size {
@@ -119,7 +109,7 @@ impl Iterator for PasswordGenerator {
         // first password
         if self.generated_count == 0 {
             self.generated_count += 1;
-            return Some(self.password.iter().collect());
+            return Some(self.password.clone());
         }
 
         // end of search space
@@ -127,61 +117,34 @@ impl Iterator for PasswordGenerator {
             return None;
         }
 
-        // check if we need to increase the length of the password
-        if self.current_len == self.current_index + 1
-            && !self.password.iter().any(|&c| c != self.charset_last)
-        {
-            // increase length and reset letters
-            self.current_index += 1;
-            self.current_len += 1;
-            self.password = vec![self.charset_first; self.current_len];
-            let possibilities = self.charset_len.pow(self.current_len as u32);
-            self.progress_bar.println(
-                format!(
-                    "Starting search space for password length {} ({} possibilities) ({} passwords generated so far)",
-                    self.current_len, possibilities, self.generated_count
-                ));
-        } else {
-            let current_char = *self.password.get(self.current_index).unwrap();
-            if current_char == self.charset_last {
-                // current char reached the end of the charset, reset current and bump previous
-                let at_prev = self
-                    .password
-                    .iter()
-                    .rposition(|&c| c != self.charset_last)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Must find something else than {} in {:?}",
-                            self.charset_last, self.password
-                        )
-                    });
-                let next_prev = if at_prev == self.charset_len - 1 {
-                    self.charset.get(self.charset_len - 1).unwrap()
-                } else {
-                    let prev_char = *self.password.get(at_prev).unwrap();
-                    let prev_index_charset = *self.charset_indices.get(&prev_char).unwrap();
-                    self.charset.get(prev_index_charset + 1).unwrap()
-                };
-
-                self.password[self.current_index] = self.charset_first;
-                self.password[at_prev] = *next_prev;
-
-                // reset all chars after previous
-                for (i, x) in self.password.iter_mut().enumerate() {
-                    if *x == self.charset_last && i > at_prev {
-                        *x = self.charset_first;
-                    }
-                }
+        // Odometer-style increment from rightmost position
+        let mut carry = true;
+        for i in (0..self.password.len()).rev() {
+            if !carry {
+                break;
+            }
+            let idx = self.charset_lookup[self.password[i] as usize];
+            if idx < self.charset_last_idx {
+                self.password[i] = self.charset[(idx + 1) as usize];
+                carry = false;
             } else {
-                // hot-path: increment current char (not at the end of charset)
-                let at = *self.charset_indices.get(&current_char).unwrap();
-                let next = *self.charset.get(at + 1).unwrap();
-                self.password[self.current_index] = next;
+                self.password[i] = self.charset[0];
             }
         }
+
+        if carry {
+            // All positions overflowed -> increase length
+            let new_len = self.password.len() + 1;
+            self.password = vec![self.charset[0]; new_len];
+            let possibilities = self.charset_len.pow(new_len as u32);
+            self.progress_bar.println(format!(
+                "Starting search space for password length {} ({} possibilities) ({} passwords generated so far)",
+                new_len, possibilities, self.generated_count
+            ));
+        }
+
         self.generated_count += 1;
-        // TODO explore using a lending iterator to avoid allocation
-        Some(self.password.iter().collect::<String>())
+        Some(self.password.clone())
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -196,7 +159,7 @@ pub fn password_generator_iter(
     max_size: usize,
     starting_password: Option<String>,
     progress_bar: ProgressBar,
-) -> impl Iterator<Item = String> {
+) -> impl Iterator<Item = Vec<u8>> {
     // start generation
     if let Some(starting_password) = &starting_password {
         progress_bar.println(format!(
@@ -229,18 +192,18 @@ mod tests {
     fn generate_password_max_size_two() {
         let mut iter =
             password_generator_iter(vec!['a', 'b', 'c'], 1, 2, None, ProgressBar::hidden());
-        assert_eq!(iter.next(), Some("a".into()));
-        assert_eq!(iter.next(), Some("b".into()));
-        assert_eq!(iter.next(), Some("c".into()));
-        assert_eq!(iter.next(), Some("aa".into()));
-        assert_eq!(iter.next(), Some("ab".into()));
-        assert_eq!(iter.next(), Some("ac".into()));
-        assert_eq!(iter.next(), Some("ba".into()));
-        assert_eq!(iter.next(), Some("bb".into()));
-        assert_eq!(iter.next(), Some("bc".into()));
-        assert_eq!(iter.next(), Some("ca".into()));
-        assert_eq!(iter.next(), Some("cb".into()));
-        assert_eq!(iter.next(), Some("cc".into()));
+        assert_eq!(iter.next(), Some(b"a".to_vec()));
+        assert_eq!(iter.next(), Some(b"b".to_vec()));
+        assert_eq!(iter.next(), Some(b"c".to_vec()));
+        assert_eq!(iter.next(), Some(b"aa".to_vec()));
+        assert_eq!(iter.next(), Some(b"ab".to_vec()));
+        assert_eq!(iter.next(), Some(b"ac".to_vec()));
+        assert_eq!(iter.next(), Some(b"ba".to_vec()));
+        assert_eq!(iter.next(), Some(b"bb".to_vec()));
+        assert_eq!(iter.next(), Some(b"bc".to_vec()));
+        assert_eq!(iter.next(), Some(b"ca".to_vec()));
+        assert_eq!(iter.next(), Some(b"cb".to_vec()));
+        assert_eq!(iter.next(), Some(b"cc".to_vec()));
         assert_eq!(iter.next(), None);
     }
 
@@ -253,10 +216,10 @@ mod tests {
             Some("bb".to_string()),
             ProgressBar::hidden(),
         );
-        assert_eq!(iter.next(), Some("bb".into()));
-        assert_eq!(iter.next(), Some("bc".into()));
-        assert_eq!(iter.next(), Some("ca".into()));
-        assert_eq!(iter.next(), Some("cb".into()));
+        assert_eq!(iter.next(), Some(b"bb".to_vec()));
+        assert_eq!(iter.next(), Some(b"bc".to_vec()));
+        assert_eq!(iter.next(), Some(b"ca".to_vec()));
+        assert_eq!(iter.next(), Some(b"cb".to_vec()));
         assert_eq!(iter.next(), None);
     }
 
@@ -285,15 +248,15 @@ mod tests {
     fn generate_password_min_max_size_two() {
         let mut iter =
             password_generator_iter(vec!['a', 'b', 'c'], 2, 2, None, ProgressBar::hidden());
-        assert_eq!(iter.next(), Some("aa".into()));
-        assert_eq!(iter.next(), Some("ab".into()));
-        assert_eq!(iter.next(), Some("ac".into()));
-        assert_eq!(iter.next(), Some("ba".into()));
-        assert_eq!(iter.next(), Some("bb".into()));
-        assert_eq!(iter.next(), Some("bc".into()));
-        assert_eq!(iter.next(), Some("ca".into()));
-        assert_eq!(iter.next(), Some("cb".into()));
-        assert_eq!(iter.next(), Some("cc".into()));
+        assert_eq!(iter.next(), Some(b"aa".to_vec()));
+        assert_eq!(iter.next(), Some(b"ab".to_vec()));
+        assert_eq!(iter.next(), Some(b"ac".to_vec()));
+        assert_eq!(iter.next(), Some(b"ba".to_vec()));
+        assert_eq!(iter.next(), Some(b"bb".to_vec()));
+        assert_eq!(iter.next(), Some(b"bc".to_vec()));
+        assert_eq!(iter.next(), Some(b"ca".to_vec()));
+        assert_eq!(iter.next(), Some(b"cb".to_vec()));
+        assert_eq!(iter.next(), Some(b"cc".to_vec()));
         assert_eq!(iter.next(), None);
     }
 
@@ -315,9 +278,9 @@ mod tests {
     #[test]
     fn generate_password_single_char_charset() {
         let mut iter = password_generator_iter(vec!['a'], 1, 3, None, ProgressBar::hidden());
-        assert_eq!(iter.next(), Some("a".into()));
-        assert_eq!(iter.next(), Some("aa".into()));
-        assert_eq!(iter.next(), Some("aaa".into()));
+        assert_eq!(iter.next(), Some(b"a".to_vec()));
+        assert_eq!(iter.next(), Some(b"aa".to_vec()));
+        assert_eq!(iter.next(), Some(b"aaa".to_vec()));
         assert_eq!(iter.next(), None);
     }
 
@@ -342,13 +305,14 @@ mod tests {
         let gold = fs::read_to_string(gold_path).expect("gold file not found!");
         for (i1, l1) in gold.lines().enumerate() {
             let l2 = iter.next().unwrap();
-            if l1.trim_end() != l2.trim_end() {
+            let l2_str = String::from_utf8(l2).unwrap();
+            if l1.trim_end() != l2_str.trim_end() {
                 eprintln!("## GOLD line {} ##", i1 + 1);
                 eprintln!("{}", l1.trim_end());
                 eprintln!("## ACTUAL ##");
-                eprintln!("{}", l2.trim_end());
+                eprintln!("{}", l2_str.trim_end());
                 eprintln!("#####");
-                assert_eq!(l1, l2);
+                assert_eq!(l1, l2_str);
             }
         }
     }
