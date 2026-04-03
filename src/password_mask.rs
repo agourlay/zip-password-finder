@@ -159,7 +159,7 @@ pub fn mask_password_count(mask: &ParsedMask) -> usize {
 }
 
 struct MaskPasswordGenerator {
-    positions: Vec<Vec<char>>,
+    positions: Vec<Vec<u8>>,
     indices: Vec<usize>,
     total: usize,
     generated: usize,
@@ -170,8 +170,14 @@ impl MaskPasswordGenerator {
     fn new(mask: ParsedMask) -> Self {
         let total = mask_password_count(&mask);
         let len = mask.positions.len();
+        // Convert char positions to u8 once at construction
+        let positions = mask
+            .positions
+            .into_iter()
+            .map(|chars| chars.into_iter().map(|c| c as u8).collect())
+            .collect();
         Self {
-            positions: mask.positions,
+            positions,
             indices: vec![0; len],
             total,
             generated: 0,
@@ -183,7 +189,7 @@ impl MaskPasswordGenerator {
         self.indices
             .iter()
             .enumerate()
-            .map(|(pos, &idx)| self.positions[pos][idx] as u8)
+            .map(|(pos, &idx)| self.positions[pos][idx])
             .collect()
     }
 }
