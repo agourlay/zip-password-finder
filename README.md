@@ -8,6 +8,8 @@ The design of this tool is described in details in the following blog articles:
 - [Brute forcing protected ZIP archives in Rust](https://agourlay.github.io/brute-forcing-protected-zip-rust/)
 - [Follow up on cracking ZIP archives in Rust](https://agourlay.github.io/follow-up-cracking-zip-rust/)
 
+If this tool helped you recover an archive, consider [sponsoring the project on GitHub](https://github.com/sponsors/agourlay).
+
 ## Features
 
 - Supports both ZipCrypto and AES encryption
