@@ -14,6 +14,7 @@ If this tool helped you recover an archive, consider [sponsoring the project on 
 
 - Supports both ZipCrypto and AES encryption
 - Multi-threaded, using all physical CPU cores by default
+- Optional GPU acceleration via `--gpu` for AES archives (see [GPU acceleration](#gpu-acceleration))
 - Three attack modes: brute force, dictionary, and mask attack
 - Graceful interruption with Ctrl-C, displaying the last password tested
 - Resume brute force from a specific password with `--startingPassword`
@@ -104,6 +105,56 @@ zip-password-finder -i archive.zip --mask '?u?l?l?l?l?s'
 zip-password-finder -i archive.zip -1 "aeiou" --mask '?1?1?d'
 ```
 
+## GPU acceleration
+
+For **AES-encrypted** archives, the `--gpu` flag offloads PBKDF2-HMAC-SHA1 derivation to the GPU. Works on any modern desktop GPU via the platform's native graphics API (Vulkan on Linux, Metal on macOS, DX12 on Windows). No extra system dependencies — the binary ships with the GPU backend included.
+
+```bash
+zip-password-finder -i archive.zip -c lud --maxPasswordLen 6 --gpu
+```
+
+What it does:
+- Picks the highest-performance adapter at startup, prints which one it found.
+- Batches candidates (16 384 per dispatch) and runs PBKDF2-HMAC-SHA1 in a compute shader.
+- Falls back automatically to the CPU path when the remaining search space is below ~16 k candidates (GPU dispatch latency would dominate).
+- Errors out cleanly if `--gpu` is requested against a ZipCrypto archive.
+
+Constraints:
+- AES only. ZipCrypto is not supported on the GPU path.
+- Passwords up to 64 bytes (HMAC long-key path is not implemented). WinZip-AES passwords are well under this in practice.
+
+To probe whether your machine has a usable GPU before running a real search:
+
+```bash
+zip-password-finder --gpu-smoke-test
+```
+
+This lists detected adapters and runs a trivial compute kernel to confirm the device is functional.
+
+Expected speedup depends heavily on your hardware. On a Radeon 890M iGPU (RDNA 3.5, 16 CUs) the GPU path runs roughly **2–7× faster than 12 CPU cores** for AES-128/256 brute force — the larger the search space, the bigger the win. Discrete GPUs should do considerably better. The `pbkdf2_gpu` benchmark prints throughput in passwords-per-second across batch sizes:
+
+```bash
+cargo bench --bench pbkdf2_gpu
+```
+
+### Troubleshooting
+
+If `--gpu` exits with `GPU error - no compatible GPU adapter found`, the binary couldn't reach a working Vulkan/Metal/DX12 driver. Common causes:
+
+- **Headless / SSH session without a graphics stack**: the loader has no devices to enumerate. Either run on a desktop session, or install a software adapter (e.g. `mesa-vulkan-drivers` on Debian/Ubuntu, which provides Mesa's `lavapipe`).
+- **WSL without GPU passthrough**: WSL2 supports CUDA but Vulkan support is patchy. Use the CPU path or set up GPU passthrough.
+- **Stripped Docker container**: install your distribution's Vulkan or Mesa packages in the image.
+
+To diagnose, run the smoke test:
+
+```bash
+zip-password-finder --gpu-smoke-test
+```
+
+It lists detected adapters and runs a trivial compute kernel. Zero adapters listed means the GPU backend isn't reachable from this binary.
+
+If `--gpu` errors with `--gpu requires an AES-encrypted archive`, the archive uses ZipCrypto (legacy ZIP encryption). The GPU path is AES-only — drop the flag and the CPU path will handle it.
+
 ## Installation
 
 ### Releases
@@ -149,6 +200,8 @@ Options:
   -2, --customCharset2 <customCharset2>          custom charset 2 for mask attack, referenced as ?2
   -3, --customCharset3 <customCharset3>          custom charset 3 for mask attack, referenced as ?3
   -4, --customCharset4 <customCharset4>          custom charset 4 for mask attack, referenced as ?4
+  -g, --gpu                                      use the GPU (Vulkan/Metal/DX12 via wgpu) — requires AES-encrypted archive
+      --gpu-smoke-test                           list GPU adapters and run a trivial compute kernel, then exit (does not require --inputFile)
   -h, --help                                     Print help
   -V, --version                                  Print version
 ```

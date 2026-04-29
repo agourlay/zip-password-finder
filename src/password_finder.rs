@@ -1,4 +1,7 @@
 use crate::finder_errors::FinderError;
+use crate::finder_errors::FinderError::CliArgumentError;
+use crate::gpu::GpuContext;
+use crate::gpu_worker::gpu_password_checker;
 use crate::password_gen::password_generator_count;
 use crate::password_mask::{ParsedMask, mask_password_count};
 use crate::password_reader::password_reader_count;
@@ -31,6 +34,7 @@ pub fn password_finder(
     workers: usize,
     file_number: usize,
     strategy: &Strategy,
+    use_gpu: bool,
     stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
@@ -107,22 +111,63 @@ pub fn password_finder(
     // reset progress_bar speed
     progress_bar.reset_elapsed();
 
-    let mut worker_handles = Vec::with_capacity(workers);
+    // Auto-fall back to CPU when the remaining search space is below the GPU
+    // amortization point. GPU has ~100ms of fixed dispatch latency per batch,
+    // and that floor exceeds any plausible CPU run-time on small workloads —
+    // see the bench: AES-128 crossover ≈ 20k passwords, AES-256 ≈ 8.5k.
+    // We use one GPU batch (16 384) as a conservative threshold that holds
+    // for both AES variants.
+    const GPU_MIN_REMAINING: usize = 16_384;
+    let remaining = total_password_count.saturating_sub(skipped);
+    let use_gpu = if use_gpu && remaining < GPU_MIN_REMAINING {
+        progress_bar.println(format!(
+            "Search space too small for GPU ({remaining} candidates < {GPU_MIN_REMAINING}); using CPU"
+        ));
+        false
+    } else {
+        use_gpu
+    };
 
-    progress_bar.println(format!("Starting {workers} workers to test passwords"));
-    for i in 1..=workers {
-        let join_handle = password_checker(
-            i,
-            workers,
+    let mut worker_handles = Vec::new();
+
+    if use_gpu {
+        let aes_info = aes_info.ok_or(CliArgumentError {
+            message: "--gpu requires an AES-encrypted archive (ZipCrypto is not supported on GPU)"
+                .to_string(),
+        })?;
+        // Init the GPU eagerly on the main thread so init failures surface as
+        // a clean error instead of a silently-exiting worker that leaves the
+        // user with "Password not found" + exit 0.
+        let gpu = GpuContext::init_blocking().map_err(|e| FinderError::Gpu { message: e })?;
+        progress_bar.println(format!(
+            "Starting GPU worker on {} ({}, {})",
+            gpu.adapter_name, gpu.backend, gpu.device_type
+        ));
+        worker_handles.push(gpu_password_checker(
+            gpu,
             file_path,
             file_number,
-            aes_info.clone(),
+            aes_info,
             strategy.clone(),
             send_found_password.clone(),
             stop_signal.clone(),
             progress_bar.clone(),
-        );
-        worker_handles.push(join_handle);
+        ));
+    } else {
+        progress_bar.println(format!("Starting {workers} workers to test passwords"));
+        for i in 1..=workers {
+            worker_handles.push(password_checker(
+                i,
+                workers,
+                file_path,
+                file_number,
+                aes_info.clone(),
+                strategy.clone(),
+                send_found_password.clone(),
+                stop_signal.clone(),
+                progress_bar.clone(),
+            ));
+        }
     }
 
     // drop reference in `main` so that it disappears completely with workers for a clean shutdown
@@ -174,6 +219,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -189,6 +235,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -288,6 +335,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
             Arc::new(AtomicBool::new(false)),
         )
     }
