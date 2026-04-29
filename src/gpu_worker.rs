@@ -17,8 +17,6 @@ use std::thread::JoinHandle;
 use zip::ZipArchive;
 use zip::result::ZipError;
 
-const GPU_BATCH: usize = 16_384;
-
 // PBKDF2 iteration count fixed by the WinZip-AES spec (APPNOTE 7.2 § 7.2).
 const WINZIP_AES_PBKDF2_ITERATIONS: u32 = 1000;
 
@@ -51,6 +49,7 @@ pub fn gpu_password_checker(
     file_number: usize,
     aes_info: AesInfo,
     strategy: Strategy,
+    gpu_batch_size: u32,
     send_password_found: SyncSender<String>,
     stop_signal: Arc<AtomicBool>,
     progress_bar: ProgressBar,
@@ -66,7 +65,7 @@ pub fn gpu_password_checker(
             // GpuContext is supplied by the caller (already validated). The
             // only way Pbkdf2Context::new fails is via invalid argument
             // values, which we control here.
-            let pctx = Pbkdf2Context::new(&gpu, GPU_BATCH as u32, n_blocks)
+            let pctx = Pbkdf2Context::new(&gpu, gpu_batch_size, n_blocks)
                 .expect("Pbkdf2Context::new with valid arguments");
 
             let mut iter = iterator_for_strategy(strategy, progress_bar.clone());
@@ -79,7 +78,8 @@ pub fn gpu_password_checker(
                 .expect("archive validated before-hand");
             let mut extraction_buffer = Vec::new();
 
-            let mut batch: Vec<Vec<u8>> = Vec::with_capacity(GPU_BATCH);
+            let batch_capacity = gpu_batch_size as usize;
+            let mut batch: Vec<Vec<u8>> = Vec::with_capacity(batch_capacity);
             let salt = aes_info.salt;
             let verifier = aes_info.verification_value;
             let dk_len = aes_info.derived_key_length;
@@ -90,7 +90,7 @@ pub fn gpu_password_checker(
                 }
 
                 batch.clear();
-                for _ in 0..GPU_BATCH {
+                for _ in 0..batch_capacity {
                     match iter.next() {
                         Some(pw) => batch.push(pw),
                         None => break,

@@ -48,6 +48,7 @@ fn main_result() -> Result<(), FinderError> {
         custom_charsets,
         use_gpu,
         gpu_smoke_test,
+        gpu_batch_size,
     } = get_args()?;
 
     // --gpu-smoke-test exits before any of the search-related logic.
@@ -91,6 +92,7 @@ fn main_result() -> Result<(), FinderError> {
         file_number,
         &strategy,
         use_gpu,
+        gpu_batch_size,
         stop_signal,
     )?;
     // Round to milliseconds — humantime would otherwise drag along ns precision

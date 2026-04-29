@@ -35,6 +35,7 @@ pub fn password_finder(
     file_number: usize,
     strategy: &Strategy,
     use_gpu: bool,
+    gpu_batch_size: u32,
     stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
@@ -115,13 +116,13 @@ pub fn password_finder(
     // amortization point. GPU has ~100ms of fixed dispatch latency per batch,
     // and that floor exceeds any plausible CPU run-time on small workloads —
     // see the bench: AES-128 crossover ≈ 20k passwords, AES-256 ≈ 8.5k.
-    // We use one GPU batch (16 384) as a conservative threshold that holds
-    // for both AES variants.
-    const GPU_MIN_REMAINING: usize = 16_384;
+    // Threshold tracks the user's batch size: a half-empty dispatch wastes the
+    // same per-batch cost regardless of how full it is.
+    let gpu_min_remaining = gpu_batch_size as usize;
     let remaining = total_password_count.saturating_sub(skipped);
-    let use_gpu = if use_gpu && remaining < GPU_MIN_REMAINING {
+    let use_gpu = if use_gpu && remaining < gpu_min_remaining {
         progress_bar.println(format!(
-            "Search space too small for GPU ({remaining} candidates < {GPU_MIN_REMAINING}); using CPU"
+            "Search space too small for GPU ({remaining} candidates < {gpu_min_remaining}); using CPU"
         ));
         false
     } else {
@@ -140,7 +141,7 @@ pub fn password_finder(
         // user with "Password not found" + exit 0.
         let gpu = GpuContext::init_blocking().map_err(|e| FinderError::Gpu { message: e })?;
         progress_bar.println(format!(
-            "Starting GPU worker on {} ({}, {})",
+            "Starting GPU worker on {} ({}, {}) — batch size {gpu_batch_size}",
             gpu.adapter_name, gpu.backend, gpu.device_type
         ));
         worker_handles.push(gpu_password_checker(
@@ -149,6 +150,7 @@ pub fn password_finder(
             file_number,
             aes_info,
             strategy.clone(),
+            gpu_batch_size,
             send_found_password.clone(),
             stop_signal.clone(),
             progress_bar.clone(),
@@ -220,6 +222,7 @@ mod tests {
             file_number,
             &strategy,
             false,
+            16_384,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -236,6 +239,7 @@ mod tests {
             file_number,
             &strategy,
             false,
+            16_384,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -336,6 +340,7 @@ mod tests {
             file_number,
             &strategy,
             false,
+            16_384,
             Arc::new(AtomicBool::new(false)),
         )
     }
