@@ -136,57 +136,60 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
 
+    // Two reusable 16-word block buffers. Naming each role separately
+    // (ipad, opad, u1_block, outer_block, inner_msg, o_msg) made naga emit
+    // six distinct `var<function>` allocations, pushing NVIDIA threads past
+    // ~100 registers and capping SM occupancy at ~25%. Live-range analysis
+    // shows only two are ever needed at once: block_a holds password- or
+    // message-derived input, block_b holds hash-derived input.
+    var block_a: array<u32, 16>;
+    var block_b: array<u32, 16>;
+
     // 1. Build ipad and opad blocks (password XOR 0x36.. / 0x5C..).
-    var ipad: array<u32, 16>;
-    var opad: array<u32, 16>;
     let pw_off = pid * 16u;
     for (var w: u32 = 0u; w < 16u; w = w + 1u) {
         let word = passwords[pw_off + w];
-        ipad[w] = word ^ 0x36363636u;
-        opad[w] = word ^ 0x5C5C5C5Cu;
+        block_a[w] = word ^ 0x36363636u;
+        block_b[w] = word ^ 0x5C5C5C5Cu;
     }
 
     // 2. Precompute SHA-1 state after one ipad / opad compression.
     var ipad_state = Sha1State(SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4);
-    sha1_compress(&ipad_state, &ipad);
+    sha1_compress(&ipad_state, &block_a);
 
     var opad_state = Sha1State(SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4);
-    sha1_compress(&opad_state, &opad);
+    sha1_compress(&opad_state, &block_b);
 
     // 3. For each output block index in 1..=n_blocks: derive T_i and write out.
     for (var blk: u32 = 0u; blk < params.n_blocks; blk = blk + 1u) {
         // U_1: HMAC inner = SHA1(ipad || salt || (blk+1)_be32). The host has
         // pre-built that 64-byte block (after the ipad prefix already absorbed).
-        var u1_block: array<u32, 16>;
         let msg_off = blk * 16u;
         for (var w: u32 = 0u; w < 16u; w = w + 1u) {
-            u1_block[w] = u1_msg_blocks[msg_off + w];
+            block_a[w] = u1_msg_blocks[msg_off + w];
         }
 
         var inner: Sha1State = ipad_state;
-        sha1_compress(&inner, &u1_block);
+        sha1_compress(&inner, &block_a);
 
-        var outer_block: array<u32, 16>;
-        pack_hash_block(&inner, &outer_block);
+        pack_hash_block(&inner, &block_b);
 
         var u_curr: Sha1State = opad_state;
-        sha1_compress(&u_curr, &outer_block);
+        sha1_compress(&u_curr, &block_b);
 
         var t: Sha1State = u_curr;
 
         // Iterations 2..=iterations.
         for (var iter: u32 = 1u; iter < params.iterations; iter = iter + 1u) {
-            var inner_msg: array<u32, 16>;
-            pack_hash_block(&u_curr, &inner_msg);
+            pack_hash_block(&u_curr, &block_a);
 
             var i_state: Sha1State = ipad_state;
-            sha1_compress(&i_state, &inner_msg);
+            sha1_compress(&i_state, &block_a);
 
-            var o_msg: array<u32, 16>;
-            pack_hash_block(&i_state, &o_msg);
+            pack_hash_block(&i_state, &block_b);
 
             u_curr = opad_state;
-            sha1_compress(&u_curr, &o_msg);
+            sha1_compress(&u_curr, &block_b);
 
             t.h0 = t.h0 ^ u_curr.h0;
             t.h1 = t.h1 ^ u_curr.h1;
