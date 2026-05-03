@@ -142,10 +142,9 @@ fn command() -> Command {
         .arg(
             Arg::new("gpuBatchSize")
                 .value_parser(value_parser!(u32))
-                .help("GPU batch size, passwords per dispatch (only used with --gpu). Larger values can lift throughput on discrete GPUs (try 65536 or 262144); the 16384 default is tuned for integrated GPUs.")
+                .help("override the GPU batch size (passwords per dispatch). When omitted, a value is picked automatically from the GPU type. Only used with --gpu.")
                 .long("gpuBatchSize")
                 .num_args(1)
-                .default_value("16384")
                 .required(false),
         )
 }
@@ -163,7 +162,7 @@ pub struct Arguments {
     pub custom_charsets: CustomCharsets,
     pub use_gpu: bool,
     pub gpu_smoke_test: bool,
-    pub gpu_batch_size: u32,
+    pub gpu_batch_size: Option<u32>,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
@@ -301,8 +300,10 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     let use_gpu = matches.get_flag("gpu");
     let gpu_smoke_test = matches.get_flag("gpuSmokeTest");
 
-    let gpu_batch_size: &u32 = matches.get_one("gpuBatchSize").expect("impossible");
-    if *gpu_batch_size == 0 {
+    let gpu_batch_size: Option<&u32> = matches.try_get_one("gpuBatchSize")?;
+    if let Some(&v) = gpu_batch_size
+        && v == 0
+    {
         return Err(CliArgumentError {
             message: "'gpuBatchSize' must be positive".to_string(),
         });
@@ -321,7 +322,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         custom_charsets,
         use_gpu,
         gpu_smoke_test,
-        gpu_batch_size: *gpu_batch_size,
+        gpu_batch_size: gpu_batch_size.copied(),
     })
 }
 
