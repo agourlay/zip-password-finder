@@ -22,6 +22,9 @@ num_cpus = "1.17.0"
 humantime = "2.3.0"
 ctrlc = "3.5"
 either = "1.15.0"
+wgpu = "29.0.1"
+pollster = "0.4.0"
+bytemuck = "1.25.0"
 
 [profile.release]
 lto = "fat"
@@ -45,4 +48,12 @@ harness = false
 
 [[bench]]
 name = "password_reader"
+harness = false
+
+[[bench]]
+name = "pbkdf2"
+harness = false
+
+[[bench]]
+name = "pbkdf2_gpu"
 harness = false

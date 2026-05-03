@@ -1,4 +1,7 @@
 use crate::finder_errors::FinderError;
+use crate::finder_errors::FinderError::CliArgumentError;
+use crate::gpu::GpuContext;
+use crate::gpu_worker::gpu_password_checker;
 use crate::password_gen::password_generator_count;
 use crate::password_mask::{ParsedMask, mask_password_count};
 use crate::password_reader::password_reader_count;
@@ -26,11 +29,24 @@ pub enum Strategy {
     },
 }
 
+// Picked from `wgpu::DeviceType` via the stringified value stored on
+// `GpuContext`. Discrete cards have far more SMs/CUs to fill than an iGPU,
+// so they need a bigger dispatch to saturate; integrated/virtual/CPU
+// adapters stay on the conservative iGPU-tuned default.
+fn default_batch_size_for(device_type: &str) -> u32 {
+    match device_type {
+        "DiscreteGpu" => 65_536,
+        _ => 16_384,
+    }
+}
+
 pub fn password_finder(
     zip_path: &str,
     workers: usize,
     file_number: usize,
     strategy: &Strategy,
+    use_gpu: bool,
+    gpu_batch_size: Option<u32>,
     stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
@@ -107,22 +123,75 @@ pub fn password_finder(
     // reset progress_bar speed
     progress_bar.reset_elapsed();
 
-    let mut worker_handles = Vec::with_capacity(workers);
+    let mut worker_handles = Vec::new();
+    let remaining = total_password_count.saturating_sub(skipped);
 
-    progress_bar.println(format!("Starting {workers} workers to test passwords"));
-    for i in 1..=workers {
-        let join_handle = password_checker(
-            i,
-            workers,
+    // GPU init happens here (eagerly, on the main thread) for two reasons:
+    // (1) failures surface as a clean error instead of a silently-exiting
+    // worker that would leave the user with "Password not found" + exit 0;
+    // (2) when the batch size is auto-selected, it depends on the adapter's
+    // device_type, so we can't compute the CPU-fallback threshold until we've
+    // inspected the adapter.
+    let gpu_setup = if use_gpu {
+        let aes_info = aes_info.clone().ok_or(CliArgumentError {
+            message: "--gpu requires an AES-encrypted archive (ZipCrypto is not supported on GPU)"
+                .to_string(),
+        })?;
+        let gpu = GpuContext::init_blocking().map_err(|e| FinderError::Gpu { message: e })?;
+        let (resolved_batch, batch_origin) = match gpu_batch_size {
+            Some(v) => (v, "user".to_string()),
+            None => (
+                default_batch_size_for(&gpu.device_type),
+                format!("auto, {}", gpu.device_type),
+            ),
+        };
+        // Auto-fall back to CPU when the remaining search space is below one
+        // batch — a half-empty dispatch wastes the same fixed per-batch cost
+        // (~100 ms wgpu/driver overhead) as a full one, and that floor exceeds
+        // any plausible CPU run-time on small workloads.
+        if remaining < resolved_batch as usize {
+            progress_bar.println(format!(
+                "Search space too small for GPU ({remaining} candidates < {resolved_batch}); using CPU"
+            ));
+            None
+        } else {
+            Some((gpu, aes_info, resolved_batch, batch_origin))
+        }
+    } else {
+        None
+    };
+
+    if let Some((gpu, aes_info, resolved_batch, batch_origin)) = gpu_setup {
+        progress_bar.println(format!(
+            "Starting GPU worker on {} ({}, {}) — batch size {resolved_batch} ({batch_origin})",
+            gpu.adapter_name, gpu.backend, gpu.device_type
+        ));
+        worker_handles.push(gpu_password_checker(
+            gpu,
             file_path,
             file_number,
-            aes_info.clone(),
+            aes_info,
             strategy.clone(),
+            resolved_batch,
             send_found_password.clone(),
             stop_signal.clone(),
             progress_bar.clone(),
-        );
-        worker_handles.push(join_handle);
+        ));
+    } else {
+        progress_bar.println(format!("Starting {workers} workers to test passwords"));
+        for i in 1..=workers {
+            worker_handles.push(password_checker(
+                i,
+                workers,
+                file_path,
+                file_number,
+                aes_info.clone(),
+                strategy.clone(),
+                send_found_password.clone(),
+                stop_signal.clone(),
+                progress_bar.clone(),
+            ));
+        }
     }
 
     // drop reference in `main` so that it disappears completely with workers for a clean shutdown
@@ -150,6 +219,20 @@ mod tests {
     use crate::charsets;
     use crate::password_mask::parse_mask;
 
+    // Pins the heuristic mapping and documents the `wgpu::DeviceType` Debug
+    // strings we rely on. The unknown-string case explicitly captures the
+    // fall-through behavior: if wgpu ever renames a variant, we degrade to
+    // the conservative iGPU default rather than crashing.
+    #[test]
+    fn default_batch_size_picks_for_device_type() {
+        assert_eq!(default_batch_size_for("DiscreteGpu"), 65_536);
+        assert_eq!(default_batch_size_for("IntegratedGpu"), 16_384);
+        assert_eq!(default_batch_size_for("VirtualGpu"), 16_384);
+        assert_eq!(default_batch_size_for("Cpu"), 16_384);
+        assert_eq!(default_batch_size_for("Other"), 16_384);
+        assert_eq!(default_batch_size_for("FuturewgpuVariant"), 16_384);
+    }
+
     fn find_password_gen(
         path: &str,
         max_password_len: usize,
@@ -174,6 +257,8 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
+            None,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -189,6 +274,8 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
+            None,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -288,6 +375,8 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            false,
+            None,
             Arc::new(AtomicBool::new(false)),
         )
     }

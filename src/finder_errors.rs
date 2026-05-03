@@ -14,6 +14,8 @@ pub enum FinderError {
     ClapError { e: clap::Error },
     #[error("CLI argument match error ({message})")]
     ClapMatchError { message: String },
+    #[error("GPU error - {message}")]
+    Gpu { message: String },
 }
 
 impl FinderError {

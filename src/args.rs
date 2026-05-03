@@ -2,7 +2,7 @@ use crate::charsets::{CharsetChoice, charset_from_choice};
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
 use crate::password_mask::{CustomCharsets, parse_custom_charset};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use std::path::Path;
 
@@ -17,7 +17,7 @@ fn command() -> Command {
                 .long("inputFile")
                 .short('i')
                 .num_args(1)
-                .required(true),
+                .required_unless_present("gpuSmokeTest"),
         )
         .arg(
             Arg::new("workers")
@@ -126,10 +126,31 @@ fn command() -> Command {
                 .num_args(1)
                 .required(false),
         )
+        .arg(
+            Arg::new("gpu")
+                .help("use the GPU (Vulkan/Metal/DX12 via wgpu) — requires AES-encrypted archive")
+                .long("gpu")
+                .short('g')
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("gpuSmokeTest")
+                .help("list GPU adapters and run a trivial compute kernel, then exit (does not require --inputFile)")
+                .long("gpu-smoke-test")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("gpuBatchSize")
+                .value_parser(value_parser!(u32))
+                .help("override the GPU batch size (passwords per dispatch). When omitted, a value is picked automatically from the GPU type. Only used with --gpu.")
+                .long("gpuBatchSize")
+                .num_args(1)
+                .required(false),
+        )
 }
 
 pub struct Arguments {
-    pub input_file: String,
+    pub input_file: Option<String>,
     pub workers: Option<usize>,
     pub charset_choice: CharsetChoice,
     pub min_password_len: usize,
@@ -139,14 +160,19 @@ pub struct Arguments {
     pub starting_password: Option<String>,
     pub mask: Option<String>,
     pub custom_charsets: CustomCharsets,
+    pub use_gpu: bool,
+    pub gpu_smoke_test: bool,
+    pub gpu_batch_size: Option<u32>,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
     let command = command();
     let matches = command.get_matches();
 
-    let input_file: &String = matches.get_one("inputFile").expect("impossible");
-    if !Path::new(input_file).is_file() {
+    let input_file: Option<&String> = matches.try_get_one("inputFile")?;
+    if let Some(path) = input_file
+        && !Path::new(path).is_file()
+    {
         return Err(CliArgumentError {
             message: "'inputFile' does not exist".to_string(),
         });
@@ -271,8 +297,20 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         }
     }
 
+    let use_gpu = matches.get_flag("gpu");
+    let gpu_smoke_test = matches.get_flag("gpuSmokeTest");
+
+    let gpu_batch_size: Option<&u32> = matches.try_get_one("gpuBatchSize")?;
+    if let Some(&v) = gpu_batch_size
+        && v == 0
+    {
+        return Err(CliArgumentError {
+            message: "'gpuBatchSize' must be positive".to_string(),
+        });
+    }
+
     Ok(Arguments {
-        input_file: input_file.clone(),
+        input_file: input_file.cloned(),
         workers: workers.copied(),
         charset_choice,
         min_password_len: *min_password_len,
@@ -282,6 +320,9 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         starting_password: starting_password.cloned(),
         mask: mask.cloned(),
         custom_charsets,
+        use_gpu,
+        gpu_smoke_test,
+        gpu_batch_size: gpu_batch_size.copied(),
     })
 }
 

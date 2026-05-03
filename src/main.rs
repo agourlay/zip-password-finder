@@ -1,6 +1,8 @@
 mod args;
 mod charsets;
 mod finder_errors;
+mod gpu;
+mod gpu_worker;
 mod password_finder;
 mod password_gen;
 mod password_mask;
@@ -18,6 +20,7 @@ use crate::password_mask::parse_mask;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 fn main() {
     let result = main_result();
@@ -43,7 +46,17 @@ fn main_result() -> Result<(), FinderError> {
         starting_password,
         mask,
         custom_charsets,
+        use_gpu,
+        gpu_smoke_test,
+        gpu_batch_size,
     } = get_args()?;
+
+    // --gpu-smoke-test exits before any of the search-related logic.
+    if gpu_smoke_test {
+        std::process::exit(gpu::run_smoke_test_cli());
+    }
+
+    let input_file = input_file.expect("clap requires --inputFile when --gpu-smoke-test is absent");
 
     let strategy = if let Some(dict_path) = password_dictionary {
         let path = Path::new(&dict_path);
@@ -73,9 +86,18 @@ fn main_result() -> Result<(), FinderError> {
     ctrlc::set_handler(move || stop_signal_interrupt.store(true, Ordering::Relaxed))
         .expect("Error setting Ctrl-C handler");
 
-    let password = password_finder(&input_file, workers, file_number, &strategy, stop_signal)?;
-    let elapsed = start_time.elapsed();
-    // display pretty time
+    let password = password_finder(
+        &input_file,
+        workers,
+        file_number,
+        &strategy,
+        use_gpu,
+        gpu_batch_size,
+        stop_signal,
+    )?;
+    // Round to milliseconds — humantime would otherwise drag along ns precision
+    // ("3s 445ms 537us 500ns") which adds noise without information.
+    let elapsed = Duration::from_millis(start_time.elapsed().as_millis() as u64);
     let elapsed = humantime::format_duration(elapsed);
     println!("Time elapsed: {elapsed}");
     match password {
