@@ -1,7 +1,12 @@
 use crate::finder_errors::FinderError;
 use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use zip::result::ZipError::UnsupportedArchive;
+
+// WinZip-AES appends a 10-byte HMAC-SHA1-80 authentication code after the
+// ciphertext (https://www.winzip.com/win/en/aes_info.html).
+const AES_AUTH_CODE_LEN: u64 = 10;
 
 #[derive(Clone, Debug)]
 pub struct AesInfo {
@@ -9,6 +14,13 @@ pub struct AesInfo {
     pub verification_value: [u8; 2],
     pub derived_key_length: usize,
     pub salt: Vec<u8>,
+    /// Authentication code of the target entry, captured only when that entry
+    /// has no ciphertext (a zero-length encrypted file). The `zip` reader skips
+    /// HMAC verification for empty entries, leaving only the 2-byte verifier —
+    /// which false-accepts 1 password in 65 536 — so the worker verifies this
+    /// code itself instead. `None` for non-empty entries, which the reader
+    /// authenticates correctly on its own.
+    pub empty_entry_auth: Option<[u8; 10]>,
 }
 
 impl AesInfo {
@@ -21,8 +33,37 @@ impl AesInfo {
             verification_value,
             derived_key_length,
             salt,
+            empty_entry_auth: None,
         }
     }
+}
+
+/// Read the 10-byte authentication code of `index` when it is an empty (no
+/// ciphertext) AES entry; returns `None` otherwise. The entry layout is
+/// `salt | 2-byte verifier | ciphertext | 10-byte auth`, and the salt length is
+/// half the AES key length (8/12/16 bytes for AES-128/192/256).
+fn read_empty_entry_auth(
+    archive: &mut zip::ZipArchive<File>,
+    file_path: &Path,
+    index: usize,
+    aes_key_length: usize,
+) -> Option<[u8; 10]> {
+    let salt_len = (aes_key_length / 2) as u64;
+    let (data_start, compressed_size) = {
+        let raw = archive.by_index_raw(index).ok()?;
+        (raw.data_start()?, raw.compressed_size())
+    };
+    // Only the ciphertext-less case needs help; the reader authenticates the rest.
+    let ciphertext_len = compressed_size.checked_sub(salt_len + 2 + AES_AUTH_CODE_LEN)?;
+    if ciphertext_len != 0 {
+        return None;
+    }
+    let auth_offset = data_start + salt_len + 2;
+    let mut file = File::open(file_path).ok()?;
+    file.seek(SeekFrom::Start(auth_offset)).ok()?;
+    let mut auth = [0u8; 10];
+    file.read_exact(&mut auth).ok()?;
+    Some(auth)
 }
 
 pub struct ValidatedZip {
@@ -113,7 +154,10 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<ValidatedZip
         let aes_key_length = aes_zip_info.aes_mode.key_length();
         let verification_value = aes_zip_info.verification_value;
         let salt = aes_zip_info.salt;
-        Some(AesInfo::new(aes_key_length, verification_value, salt))
+        let mut info = AesInfo::new(aes_key_length, verification_value, salt);
+        info.empty_entry_auth =
+            read_empty_entry_auth(&mut archive, file_path, target_index, aes_key_length);
+        Some(info)
     } else {
         None
     };
