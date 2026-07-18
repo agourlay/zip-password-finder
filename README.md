@@ -108,7 +108,7 @@ zip-password-finder archive.zip -1 "aeiou" --mask '?1?1?d'
 
 ## 7z support
 
-7z archives are supported transparently — point `-i` at a `.7z` file and use any of the attack modes above:
+7z archives are supported transparently — point the tool at a `.7z` file and use any of the attack modes above:
 
 ```bash
 zip-password-finder archive.7z -p wordlist.txt
@@ -165,13 +165,13 @@ Options:
       --file-number <index>           file number in the zip archive [default: 0]
   -s, --starting-password <password>  password to start from
   -m, --mask <pattern>                mask pattern for mask attack (e.g. '?l?l?l?d?d')
-  -1, --custom-charset-1 <chars>      custom charset 1 for mask attack, referenced as ?1
+  -1, --custom-charset-1 <chars>      custom charset 1 for mask attack, referenced as ?1 (e.g. 'aeiou' or '?l?d')
   -2, --custom-charset-2 <chars>      custom charset 2 for mask attack, referenced as ?2
   -3, --custom-charset-3 <chars>      custom charset 3 for mask attack, referenced as ?3
   -4, --custom-charset-4 <chars>      custom charset 4 for mask attack, referenced as ?4
   -q, --quiet                         suppress progress and status output (print only the result on stdout)
       --json                          print the result as a JSON object on stdout
-  -h, --help                          Print help
+  -h, --help                          Print help (see more with '--help')
   -V, --version                       Print version
 ```
 
