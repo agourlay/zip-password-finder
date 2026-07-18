@@ -14,6 +14,7 @@ If this tool helped you recover an archive, consider [sponsoring the project on 
 
 - Supports ZIP (ZipCrypto + AES) and 7z (AES-256) archives
 - Multi-threaded, using all physical CPU cores by default
+- Optional GPU acceleration via `--gpu` for AES archives (see [GPU acceleration](#gpu-acceleration))
 - Three attack modes: brute force, dictionary, and mask attack
 - Graceful interruption with Ctrl-C, displaying the last password tested
 - Resume brute force from a specific password with `--starting-password`
@@ -122,6 +123,56 @@ A few things to keep in mind, all stemming from 7z's design rather than this too
 - **AES-256 only**, which is what every recent 7z build produces.
 - Unlike ZIP, 7z has no cheap per-candidate verifier, so each password is fully decrypt-and-checked. The `--file-number` option is **rejected** for 7z (it selects an entry in a multi-file ZIP; for 7z any encrypted entry proves the password). Verification uses whichever entry is cheapest to decode — the smallest one for non-solid archives — to keep the check fast even when the archive holds a large file.
 
+## GPU acceleration
+
+For **AES-encrypted** archives, the `--gpu` flag offloads PBKDF2-HMAC-SHA1 derivation to the GPU. Works on any modern desktop GPU via the platform's native graphics API (Vulkan on Linux, Metal on macOS, DX12 on Windows). No extra system dependencies — the binary ships with the GPU backend included.
+
+```bash
+zip-password-finder archive.zip -c lud --max-password-len 6 --gpu
+```
+
+What it does:
+- Picks the highest-performance adapter at startup, prints which one it found.
+- Batches candidates (16 384 per dispatch) and runs PBKDF2-HMAC-SHA1 in a compute shader.
+- Falls back automatically to the CPU path when the remaining search space is below ~16 k candidates (GPU dispatch latency would dominate).
+- Errors out cleanly if `--gpu` is requested against a ZipCrypto archive.
+
+Constraints:
+- AES only. ZipCrypto is not supported on the GPU path.
+- Passwords up to 64 bytes (HMAC long-key path is not implemented). WinZip-AES passwords are well under this in practice.
+
+To probe whether your machine has a usable GPU before running a real search:
+
+```bash
+zip-password-finder --gpu-smoke-test
+```
+
+This lists detected adapters and runs a trivial compute kernel to confirm the device is functional.
+
+Expected speedup depends heavily on your hardware. On a Radeon 890M iGPU (RDNA 3.5, 16 CUs) the GPU path runs roughly **2–7× faster than 12 CPU cores** for AES-128/256 brute force — the larger the search space, the bigger the win. Discrete GPUs should do considerably better. The `pbkdf2_gpu` benchmark prints throughput in passwords-per-second across batch sizes:
+
+```bash
+cargo bench --bench pbkdf2_gpu
+```
+
+### Troubleshooting
+
+If `--gpu` exits with `GPU error - no compatible GPU adapter found`, the binary couldn't reach a working Vulkan/Metal/DX12 driver. Common causes:
+
+- **Headless / SSH session without a graphics stack**: the loader has no devices to enumerate. Either run on a desktop session, or install a software adapter (e.g. `mesa-vulkan-drivers` on Debian/Ubuntu, which provides Mesa's `lavapipe`).
+- **WSL without GPU passthrough**: WSL2 supports CUDA but Vulkan support is patchy. Use the CPU path or set up GPU passthrough.
+- **Stripped Docker container**: install your distribution's Vulkan or Mesa packages in the image.
+
+To diagnose, run the smoke test:
+
+```bash
+zip-password-finder --gpu-smoke-test
+```
+
+It lists detected adapters and runs a trivial compute kernel. Zero adapters listed means the GPU backend isn't reachable from this binary.
+
+If `--gpu` errors with `--gpu requires an AES-encrypted archive`, the archive uses ZipCrypto (legacy ZIP encryption). The GPU path is AES-only — drop the flag and the CPU path will handle it.
+
 ## Installation
 
 ### Releases
@@ -150,10 +201,10 @@ paru -S zip-password-finder
 ./zip-password-finder -h
 Find the password of protected ZIP files
 
-Usage: zip-password-finder [OPTIONS] <file>
+Usage: zip-password-finder [OPTIONS] [file]
 
 Arguments:
-  <file>  path to the zip or 7z input file
+  [file]  path to the zip or 7z input file
 
 Options:
   -w, --workers <count>               number of workers
@@ -161,7 +212,7 @@ Options:
   -c, --charset <preset>              charset preset(s) to combine for brute force [default: lud]
       --charset-file <file>           path to a charset file
       --min-password-len <len>        minimum password length [default: 1]
-      --max-password-len <len>        maximum password length [default: 6]
+      --max-password-len <len>        maximum password length to brute-force [default: 6]
       --file-number <index>           file number in the zip archive [default: 0]
   -s, --starting-password <password>  password to start from
   -m, --mask <pattern>                mask pattern for mask attack (e.g. '?l?l?l?d?d')
@@ -171,6 +222,9 @@ Options:
   -4, --custom-charset-4 <chars>      custom charset 4 for mask attack, referenced as ?4
   -q, --quiet                         suppress progress and status output (print only the result on stdout)
       --json                          print the result as a JSON object on stdout
+  -g, --gpu                           use the GPU (Vulkan/Metal/DX12 via wgpu) — requires AES-encrypted archive
+      --gpu-smoke-test                list GPU adapters and run a trivial compute kernel, then exit (does not require an input file)
+      --gpu-batch-size <size>         override the GPU batch size (passwords per dispatch). When omitted, a value is picked automatically from the GPU type. Only used with --gpu.
   -h, --help                          Print help (see more with '--help')
   -V, --version                       Print version
 ```

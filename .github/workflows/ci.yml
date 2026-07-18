@@ -34,6 +34,15 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # GPU unit tests call `wgpu::Instance::request_adapter` and panic if no
+      # adapter is found. Linux runners need a software Vulkan stack so wgpu
+      # can pick up llvmpipe; macOS has Metal and Windows has WARP DX12 by
+      # default, no install needed.
+      - name: Install software Vulkan (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mesa-vulkan-drivers
       - name: Check code formatting
         run: cargo fmt --all -- --check
       - name: Build
