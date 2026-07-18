@@ -299,3 +299,15 @@ pub fn run_smoke_test_cli() -> i32 {
         }
     }
 }
+
+#[cfg(test)]
+/// One shared GPU context for all tests. Creating a `wgpu` device concurrently
+/// crashes some drivers, and the test harness runs tests in parallel — so the
+/// device is created once (and reused across threads, which `wgpu` allows).
+/// This avoids the crash and is faster than a context per test.
+pub(crate) fn test_context() -> &'static GpuContext {
+    use std::sync::LazyLock;
+    static CTX: LazyLock<GpuContext> =
+        LazyLock::new(|| GpuContext::init_blocking().expect("GPU init for tests"));
+    &CTX
+}

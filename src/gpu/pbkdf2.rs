@@ -367,9 +367,9 @@ mod tests {
     }
 
     fn check_one(password: &[u8], salt: &[u8], iterations: u32, dk_len: usize) {
-        let ctx = GpuContext::init_blocking().expect("GPU init");
+        let ctx = crate::gpu::test_context();
         let pws: &[&[u8]] = &[password];
-        let gpu = pbkdf2_hmac_sha1_gpu(&ctx, pws, salt, iterations, dk_len).expect("gpu pbkdf2");
+        let gpu = pbkdf2_hmac_sha1_gpu(ctx, pws, salt, iterations, dk_len).expect("gpu pbkdf2");
         let ref_key = cpu(password, salt, iterations, dk_len);
         assert_eq!(
             gpu[0],
@@ -430,13 +430,13 @@ mod tests {
 
     #[test]
     fn pbkdf2_batched_passwords() {
-        let ctx = GpuContext::init_blocking().expect("GPU init");
+        let ctx = crate::gpu::test_context();
         let salt = [0x42u8; 16];
         let owned: Vec<Vec<u8>> = (0..256u32)
             .map(|i| format!("password_{i}").into_bytes())
             .collect();
         let pws: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-        let gpu = pbkdf2_hmac_sha1_gpu(&ctx, &pws, &salt, 1000, 66).expect("gpu pbkdf2");
+        let gpu = pbkdf2_hmac_sha1_gpu(ctx, &pws, &salt, 1000, 66).expect("gpu pbkdf2");
         for (i, pw) in owned.iter().enumerate() {
             let ref_key = cpu(pw, &salt, 1000, 66);
             assert_eq!(gpu[i], ref_key, "mismatch at index {i} for password {pw:?}");
@@ -447,11 +447,11 @@ mod tests {
     fn pbkdf2_batched_partially_filling_workgroup() {
         // Sizes that don't align to the kernel's workgroup_size.
         for n in [1, 2, 7, 63, 64, 65, 100, 257] {
-            let ctx = GpuContext::init_blocking().expect("GPU init");
+            let ctx = crate::gpu::test_context();
             let salt = [0xAA; 16];
             let owned: Vec<Vec<u8>> = (0..n).map(|i| format!("p_{i}").into_bytes()).collect();
             let pws: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-            let gpu = pbkdf2_hmac_sha1_gpu(&ctx, &pws, &salt, 1000, 66).expect("gpu pbkdf2");
+            let gpu = pbkdf2_hmac_sha1_gpu(ctx, &pws, &salt, 1000, 66).expect("gpu pbkdf2");
             assert_eq!(gpu.len(), n);
             for (i, pw) in owned.iter().enumerate() {
                 let ref_key = cpu(pw, &salt, 1000, 66);

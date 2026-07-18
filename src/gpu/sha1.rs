@@ -158,8 +158,8 @@ mod tests {
     }
 
     fn check(msg: &[u8]) {
-        let ctx = GpuContext::init_blocking().expect("GPU init");
-        let gpu = sha1_gpu(&ctx, msg).expect("sha1_gpu");
+        let ctx = crate::gpu::test_context();
+        let gpu = sha1_gpu(ctx, msg).expect("sha1_gpu");
         let cpu = cpu_digest(msg);
         assert_eq!(
             gpu,
@@ -205,8 +205,8 @@ mod tests {
         // Sweep awkward sizes around block boundaries.
         for len in [1, 3, 55, 56, 63, 64, 65, 119, 120, 127, 128, 200, 1000] {
             let msg: Vec<u8> = (0..len).map(|i| (i as u8).wrapping_mul(31)).collect();
-            let ctx = GpuContext::init_blocking().expect("GPU init");
-            let gpu = sha1_gpu(&ctx, &msg).expect("sha1_gpu");
+            let ctx = crate::gpu::test_context();
+            let gpu = sha1_gpu(ctx, &msg).expect("sha1_gpu");
             let cpu = cpu_digest(&msg);
             assert_eq!(
                 gpu, cpu,
