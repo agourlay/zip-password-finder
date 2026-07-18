@@ -54,17 +54,21 @@ fn reject_inapplicable_options(
 }
 
 fn main() {
-    let result = main_result();
-    std::process::exit(match result {
-        Ok(()) => 0,
+    // Exit codes follow the grep convention: 0 = password found, 1 = not found,
+    // 2 = error. This lets scripts branch on the outcome without parsing output.
+    std::process::exit(match main_result() {
+        Ok(true) => 0,
+        Ok(false) => 1,
         Err(err) => {
             eprintln!("{err}");
-            1
+            2
         }
     });
 }
 
-fn main_result() -> Result<(), FinderError> {
+/// Runs the search and reports the outcome. Returns `Ok(true)` when a password
+/// was found, `Ok(false)` when the search completed without one.
+fn main_result() -> Result<bool, FinderError> {
     // CLI args
     let Arguments {
         input_file,
@@ -78,6 +82,8 @@ fn main_result() -> Result<(), FinderError> {
         starting_password,
         mask,
         custom_charsets,
+        quiet,
+        json,
     } = get_args()?;
 
     // Reject options that do not apply to the detected archive type before doing
@@ -114,19 +120,66 @@ fn main_result() -> Result<(), FinderError> {
         .expect("Error setting Ctrl-C handler");
 
     let password = if is_sevenz {
-        sevenz_password_finder(&input_file, workers, &strategy, stop_signal)?
+        sevenz_password_finder(&input_file, workers, &strategy, quiet, stop_signal)?
     } else {
-        password_finder(&input_file, workers, file_number, &strategy, stop_signal)?
+        password_finder(
+            &input_file,
+            workers,
+            file_number,
+            &strategy,
+            quiet,
+            stop_signal,
+        )?
     };
     let elapsed = start_time.elapsed();
-    // display pretty time
-    let elapsed = humantime::format_duration(elapsed);
-    println!("Time elapsed: {elapsed}");
-    match password {
-        Some(password) => println!("Password found:{password}"),
-        None => println!("Password not found"),
+
+    // stdout carries only the result; progress and status went to stderr. The
+    // three modes: --json (structured), --quiet (bare password), default (human).
+    if json {
+        let file = json_escape(&input_file);
+        let elapsed_ms = elapsed.as_millis();
+        match &password {
+            Some(pw) => println!(
+                "{{\"found\":true,\"password\":\"{}\",\"file\":\"{}\",\"elapsed_ms\":{}}}",
+                json_escape(pw),
+                file,
+                elapsed_ms
+            ),
+            None => println!(
+                "{{\"found\":false,\"password\":null,\"file\":\"{}\",\"elapsed_ms\":{}}}",
+                file, elapsed_ms
+            ),
+        }
+    } else if quiet {
+        if let Some(pw) = &password {
+            println!("{pw}");
+        }
+    } else {
+        eprintln!("Time elapsed: {}", humantime::format_duration(elapsed));
+        match &password {
+            Some(pw) => println!("Password found: {pw}"),
+            None => println!("Password not found"),
+        }
     }
-    Ok(())
+
+    Ok(password.is_some())
+}
+
+/// Minimal JSON string escaping for the `--json` output, avoiding a dependency.
+fn json_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -148,5 +201,15 @@ mod tests {
     fn sevenz_signature_detection() {
         assert!(is_sevenz_archive("test-files/3.test.txt.7z"));
         assert!(!is_sevenz_archive("test-files/3.test.txt.zip"));
+    }
+
+    #[test]
+    fn json_escape_handles_special_characters() {
+        assert_eq!(json_escape("abc"), "abc");
+        assert_eq!(json_escape("a\"b\\c"), "a\\\"b\\\\c");
+        assert_eq!(json_escape("line\nbreak\ttab"), "line\\nbreak\\ttab");
+        assert_eq!(json_escape("\u{0001}"), "\\u0001");
+        // non-ASCII stays as-is (valid UTF-8 in JSON)
+        assert_eq!(json_escape("pässwörd"), "pässwörd");
     }
 }

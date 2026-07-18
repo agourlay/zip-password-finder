@@ -16,6 +16,7 @@ pub fn sevenz_password_finder(
     archive_path: &str,
     workers: usize,
     strategy: &Strategy,
+    quiet: bool,
     stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(archive_path);
@@ -25,7 +26,13 @@ pub fn sevenz_password_finder(
         .template("[{elapsed_precise}] {wide_bar} {pos}/{len} throughput:{per_sec} (eta:{eta})")
         .expect("Failed to create progress style");
     progress_bar.set_style(progress_style);
-    progress_bar.set_draw_target(ProgressDrawTarget::stdout_with_hz(2));
+    // Progress and status lines go to stderr; --quiet hides them entirely.
+    let draw_target = if quiet {
+        ProgressDrawTarget::hidden()
+    } else {
+        ProgressDrawTarget::stderr_with_hz(2)
+    };
+    progress_bar.set_draw_target(draw_target);
 
     // Fail early if the archive is not a password-protected 7z we can process.
     let validated = validate_sevenz(file_path)?;
@@ -115,8 +122,14 @@ mod tests {
         // without every parallel test function spawning all physical cores and
         // oversubscribing the CPU (7z key derivation is heavy).
         let workers = 2;
-        sevenz_password_finder(path, workers, &strategy, Arc::new(AtomicBool::new(false)))
-            .expect("finder should not error")
+        sevenz_password_finder(
+            path,
+            workers,
+            &strategy,
+            true,
+            Arc::new(AtomicBool::new(false)),
+        )
+        .expect("finder should not error")
     }
 
     fn mask(pattern: &str) -> Strategy {

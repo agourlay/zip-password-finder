@@ -31,6 +31,7 @@ pub fn password_finder(
     workers: usize,
     file_number: usize,
     strategy: &Strategy,
+    quiet: bool,
     stop_signal: Arc<AtomicBool>,
 ) -> Result<Option<String>, FinderError> {
     let file_path = Path::new(zip_path);
@@ -41,8 +42,13 @@ pub fn password_finder(
         .template("[{elapsed_precise}] {wide_bar} {pos}/{len} throughput:{per_sec} (eta:{eta})")
         .expect("Failed to create progress style");
     progress_bar.set_style(progress_style);
-    // Refresh terminal 2 times per seconds
-    let draw_target = ProgressDrawTarget::stdout_with_hz(2);
+    // Progress and status lines go to stderr so stdout carries only the result;
+    // --quiet hides them entirely.
+    let draw_target = if quiet {
+        ProgressDrawTarget::hidden()
+    } else {
+        ProgressDrawTarget::stderr_with_hz(2)
+    };
     progress_bar.set_draw_target(draw_target);
 
     // Fail early if the zip file is not valid
@@ -174,6 +180,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            true,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -189,6 +196,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            true,
             Arc::new(AtomicBool::new(false)),
         )
     }
@@ -246,6 +254,7 @@ mod tests {
             num_cpus::get_physical(),
             0,
             &strategy,
+            true,
             Arc::new(AtomicBool::new(false)),
         )
         .unwrap();
@@ -308,6 +317,7 @@ mod tests {
             workers,
             file_number,
             &strategy,
+            true,
             Arc::new(AtomicBool::new(false)),
         )
     }

@@ -158,7 +158,7 @@ Arguments:
 Options:
   -w, --workers <count>               number of workers
   -p, --password-dictionary <file>    path to a password dictionary file
-  -c, --charset <preset>              charset to use to generate password [default: lud]
+  -c, --charset <preset>              charset preset(s) to combine for brute force [default: lud]
       --charset-file <file>           path to a charset file
       --min-password-len <len>        minimum password length [default: 1]
       --max-password-len <len>        maximum password length [default: 6]
@@ -169,9 +169,25 @@ Options:
   -2, --custom-charset-2 <chars>      custom charset 2 for mask attack, referenced as ?2
   -3, --custom-charset-3 <chars>      custom charset 3 for mask attack, referenced as ?3
   -4, --custom-charset-4 <chars>      custom charset 4 for mask attack, referenced as ?4
+  -q, --quiet                         suppress progress and status output (print only the result on stdout)
+      --json                          print the result as a JSON object on stdout
   -h, --help                          Print help
   -V, --version                       Print version
 ```
+
+### Output and scripting
+
+The found password is written to **stdout**; progress and status go to **stderr**, so the result is easy to capture:
+
+```bash
+password=$(zip-password-finder archive.zip -p wordlist.txt --quiet) && echo "got: $password"
+```
+
+Exit codes follow the `grep` convention: **0** if the password was found, **1** if the search finished without it, **2** on error. Three output modes:
+
+- default — human-readable `Password found: <password>` on stdout
+- `--quiet` / `-q` — just the bare password on stdout (nothing if not found), no progress
+- `--json` — a JSON object on stdout, e.g. `{"found":true,"password":"secret","file":"archive.zip","elapsed_ms":1234}`
 
 ## Performance
 

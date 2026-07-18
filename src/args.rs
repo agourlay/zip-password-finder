@@ -2,7 +2,7 @@ use crate::charsets::{CharsetChoice, charset_from_choice};
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
 use crate::password_mask::{CustomCharsets, parse_custom_charset};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use clap::{crate_authors, crate_description, crate_name, crate_version, value_parser};
 use std::path::Path;
 
@@ -40,7 +40,17 @@ fn command() -> Command {
         )
         .arg(
             Arg::new("charset")
-                .help("charset to use to generate password")
+                .help("charset preset(s) to combine for brute force")
+                .long_help(
+                    "charset preset(s) to combine for brute force:\n  \
+                     l  lowercase [a-z]\n  \
+                     u  uppercase [A-Z]\n  \
+                     d  digits [0-9]\n  \
+                     h  lowercase hex [0-9a-f]\n  \
+                     H  uppercase hex [0-9A-F]\n  \
+                     s  symbols\n\
+                     Combine several, e.g. 'lud' = lowercase + uppercase + digits.",
+                )
                 .value_name("preset")
                 .long("charset")
                 .short('c')
@@ -155,6 +165,19 @@ fn command() -> Command {
                 .requires("mask")
                 .required(false),
         )
+        .arg(
+            Arg::new("quiet")
+                .help("suppress progress and status output (print only the result on stdout)")
+                .long("quiet")
+                .short('q')
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("json")
+                .help("print the result as a JSON object on stdout")
+                .long("json")
+                .action(ArgAction::SetTrue),
+        )
 }
 
 pub struct Arguments {
@@ -171,6 +194,8 @@ pub struct Arguments {
     pub starting_password: Option<String>,
     pub mask: Option<String>,
     pub custom_charsets: CustomCharsets,
+    pub quiet: bool,
+    pub json: bool,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
@@ -296,6 +321,8 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         starting_password: starting_password.cloned(),
         mask: mask.cloned(),
         custom_charsets,
+        quiet: matches.get_flag("quiet"),
+        json: matches.get_flag("json"),
     })
 }
 
