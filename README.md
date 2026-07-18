@@ -120,7 +120,7 @@ A few things to keep in mind, all stemming from 7z's design rather than this too
 
 - **Expect a much lower throughput than ZIP.** 7z derives its AES-256 key by iterating SHA-256 ~524,288 times per candidate (vs. 1,000 PBKDF2 rounds for ZIP-AES). This is deliberate and makes **brute force impractical** for anything but very short passwords — a **dictionary or mask attack is the realistic approach**.
 - **AES-256 only**, which is what every recent 7z build produces.
-- Unlike ZIP, 7z has no cheap per-candidate verifier, so each password is fully decrypt-and-checked. The `--file-number` option does not apply; the first encrypted entry is used for verification.
+- Unlike ZIP, 7z has no cheap per-candidate verifier, so each password is fully decrypt-and-checked. The `--file-number` option does not apply; verification uses the smallest encrypted entry (for non-solid archives) to keep that check cheap even when the archive holds a large file.
 
 ## Installation
 

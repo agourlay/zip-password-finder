@@ -75,6 +75,7 @@ pub fn sevenz_password_finder(
             i,
             workers,
             validated.bytes.clone(),
+            validated.target.clone(),
             strategy.clone(),
             send_found_password.clone(),
             stop_signal.clone(),

@@ -3,7 +3,7 @@ use crate::password_gen::password_generator_iter;
 use crate::password_mask::mask_password_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::password_worker::filter_for_worker_index;
-use crate::sevenz_utils::try_password;
+use crate::sevenz_utils::{VerifyTarget, try_password};
 use indicatif::ProgressBar;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -38,6 +38,7 @@ pub fn sevenz_password_checker(
     index: usize,
     worker_count: usize,
     archive_bytes: Arc<Vec<u8>>,
+    target: Option<VerifyTarget>,
     strategy: Strategy,
     send_password_found: SyncSender<String>,
     stop_signal: Arc<AtomicBool>,
@@ -76,7 +77,10 @@ pub fn sevenz_password_checker(
                 // A structural error cannot happen here: validation already
                 // probed the archive and rejected unsupported codecs, so any
                 // error at this point is treated as a non-match.
-                if matches!(try_password(&archive_bytes, &password), Ok(true)) {
+                if matches!(
+                    try_password(&archive_bytes, &password, target.as_ref()),
+                    Ok(true)
+                ) {
                     send_password_found
                         .send(password.into_owned())
                         .expect("Send found password should not fail");
