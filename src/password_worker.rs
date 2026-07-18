@@ -4,7 +4,7 @@ use crate::password_mask::mask_password_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::zip_utils::AesInfo;
 use either::Either;
-use hmac::Hmac;
+use hmac::{Hmac, KeyInit, Mac};
 use indicatif::ProgressBar;
 use sha1::Sha1;
 use std::io::{BufReader, Cursor, Read};
@@ -96,15 +96,19 @@ pub fn password_checker(
 
             // AES info bindings
             let mut derived_key_len = 0;
+            let mut aes_key_length = 0;
             let mut derived_key: Vec<u8> = Vec::new();
             let mut salt: Vec<u8> = Vec::new();
             let mut verification_value: [u8; 2] = [0; 2];
+            let mut empty_entry_auth: Option<[u8; 10]> = None;
 
             // setup file reader depending on the encryption method
             let reader = if let Some(aes_info) = aes_info {
                 salt = aes_info.salt;
                 verification_value = aes_info.verification_value;
                 derived_key_len = aes_info.derived_key_length;
+                aes_key_length = aes_info.aes_key_length;
+                empty_entry_auth = aes_info.empty_entry_auth;
                 derived_key = vec![0; derived_key_len];
                 let file = fs::File::open(file_path).expect("File should exist");
                 // in case of AES we do not need to access the archive often, a buffer reader is enough
@@ -131,6 +135,24 @@ pub fn password_checker(
                     let pwd_verify = &derived_key[derived_key_len - 2..];
                     // the last 2 bytes should equal the password verification value
                     potential_match = verification_value == pwd_verify;
+                }
+
+                // Empty AES entry: the reader can't authenticate a passing 2-byte
+                // verifier because there is no ciphertext, so it would accept 1
+                // wrong password in 65 536. Verify the WinZip authentication code
+                // (HMAC-SHA1-80 over the empty message) with the derived HMAC key.
+                if potential_match && let Some(expected_auth) = empty_entry_auth {
+                    let hmac_key = &derived_key[aes_key_length..aes_key_length * 2];
+                    let mac = <Hmac<Sha1> as KeyInit>::new_from_slice(hmac_key)
+                        .expect("HMAC accepts any key length");
+                    let tag = mac.finalize().into_bytes();
+                    if tag[..10] == expected_auth {
+                        let password_str = String::from_utf8_lossy(&password_bytes).into_owned();
+                        send_password_found
+                            .send(password_str)
+                            .expect("Send found password should not fail");
+                    }
+                    potential_match = false; // handled; skip the read-based path below
                 }
 
                 // ZipCrypto falls back directly here and will recompute its key for each password

@@ -233,6 +233,26 @@ mod tests {
     }
 
     #[test]
+    fn empty_aes_entry_rejects_verifier_collision() {
+        // 3.test.txt.zip wraps a 0-byte file with AES-128, so the reader cannot
+        // authenticate it and only the weak 2-byte verifier applies. "019061"
+        // passes that verifier but is not the real password ("abc"); the manual
+        // HMAC auth check must reject it instead of reporting a false positive.
+        let strategy = PasswordFile(PathBuf::from(
+            "test-files/empty-aes-verifier-collisions.txt",
+        ));
+        let result = password_finder(
+            "test-files/3.test.txt.zip",
+            num_cpus::get_physical(),
+            0,
+            &strategy,
+            Arc::new(AtomicBool::new(false)),
+        )
+        .unwrap();
+        assert_eq!(result, None);
+    }
+
+    #[test]
     fn fail_to_find_three_letters_password_generated() {
         // because max_password_len is 2
         let password = find_password_gen("test-files/3.test.txt.zip", 2).unwrap();
