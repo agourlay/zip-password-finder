@@ -146,6 +146,9 @@ pub struct Arguments {
     pub min_password_len: usize,
     pub max_password_len: usize,
     pub file_number: usize,
+    /// Whether `--file-number` was given on the command line (as opposed to its
+    /// default), so the caller can reject it where it does not apply (7z).
+    pub file_number_explicit: bool,
     pub password_dictionary: Option<String>,
     pub starting_password: Option<String>,
     pub mask: Option<String>,
@@ -212,6 +215,8 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     }
 
     let file_number: &usize = matches.get_one("fileNumber").expect("impossible");
+    let file_number_explicit =
+        matches.value_source("fileNumber") == Some(clap::parser::ValueSource::CommandLine);
 
     let charset_choice = if let Some(charset_file_path) = charset_file {
         // priority to charset file
@@ -292,6 +297,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         min_password_len: *min_password_len,
         max_password_len: *max_password_len,
         file_number: *file_number,
+        file_number_explicit,
         password_dictionary: password_dictionary.cloned(),
         starting_password: starting_password.cloned(),
         mask: mask.cloned(),

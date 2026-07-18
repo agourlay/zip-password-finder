@@ -6,18 +6,52 @@ mod password_gen;
 mod password_mask;
 mod password_reader;
 mod password_worker;
+mod sevenz_finder;
+mod sevenz_utils;
+mod sevenz_worker;
 mod zip_utils;
 
 use crate::args::{Arguments, get_args};
 use crate::finder_errors::FinderError;
 use crate::password_finder::Strategy::{GenPasswords, MaskGenPasswords, PasswordFile};
 use crate::password_finder::password_finder;
+use crate::sevenz_finder::sevenz_password_finder;
 
 use crate::charsets::charset_from_choice;
 use crate::password_mask::parse_mask;
+use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+// Route by content, not extension: peek at the leading bytes and treat the file
+// as 7z only if it carries the 7z signature. Anything else falls through to the
+// existing zip path.
+fn is_sevenz_archive(path: &str) -> bool {
+    let mut buf = [0u8; 6];
+    std::fs::File::open(path)
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .map(|()| sevenz_utils::has_sevenz_signature(&buf))
+        .unwrap_or(false)
+}
+
+// `--file-number` selects an entry inside a multi-file ZIP; it is meaningless
+// for 7z, where every encrypted entry shares the password and verification runs
+// against whichever entry is cheapest. Reject it explicitly instead of silently
+// ignoring what the user asked for.
+fn reject_inapplicable_options(
+    is_sevenz: bool,
+    file_number_explicit: bool,
+) -> Result<(), FinderError> {
+    if is_sevenz && file_number_explicit {
+        return Err(FinderError::CliArgumentError {
+            message:
+                "'--file-number' does not apply to 7z archives (every entry shares the password)"
+                    .to_string(),
+        });
+    }
+    Ok(())
+}
 
 fn main() {
     let result = main_result();
@@ -39,11 +73,17 @@ fn main_result() -> Result<(), FinderError> {
         min_password_len,
         max_password_len,
         file_number,
+        file_number_explicit,
         password_dictionary,
         starting_password,
         mask,
         custom_charsets,
     } = get_args()?;
+
+    // Reject options that do not apply to the detected archive type before doing
+    // any work, rather than silently ignoring them.
+    let is_sevenz = is_sevenz_archive(&input_file);
+    reject_inapplicable_options(is_sevenz, file_number_explicit)?;
 
     let strategy = if let Some(dict_path) = password_dictionary {
         let path = Path::new(&dict_path);
@@ -73,7 +113,11 @@ fn main_result() -> Result<(), FinderError> {
     ctrlc::set_handler(move || stop_signal_interrupt.store(true, Ordering::Relaxed))
         .expect("Error setting Ctrl-C handler");
 
-    let password = password_finder(&input_file, workers, file_number, &strategy, stop_signal)?;
+    let password = if is_sevenz {
+        sevenz_password_finder(&input_file, workers, &strategy, stop_signal)?
+    } else {
+        password_finder(&input_file, workers, file_number, &strategy, stop_signal)?
+    };
     let elapsed = start_time.elapsed();
     // display pretty time
     let elapsed = humantime::format_duration(elapsed);
@@ -83,4 +127,26 @@ fn main_result() -> Result<(), FinderError> {
         None => println!("Password not found"),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_number_rejected_only_for_sevenz_when_explicit() {
+        // 7z + explicit --file-number -> rejected
+        assert!(reject_inapplicable_options(true, true).is_err());
+        // 7z without an explicit --file-number (default) -> accepted
+        assert!(reject_inapplicable_options(true, false).is_ok());
+        // zip always accepts --file-number
+        assert!(reject_inapplicable_options(false, true).is_ok());
+        assert!(reject_inapplicable_options(false, false).is_ok());
+    }
+
+    #[test]
+    fn sevenz_signature_detection() {
+        assert!(is_sevenz_archive("test-files/3.test.txt.7z"));
+        assert!(!is_sevenz_archive("test-files/3.test.txt.zip"));
+    }
 }
