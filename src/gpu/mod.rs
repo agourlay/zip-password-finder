@@ -56,6 +56,7 @@ impl GpuContext {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: None,
+                apply_limit_buckets: false,
             })
             .await
             .map_err(|e| {
@@ -199,7 +200,9 @@ async fn smoke_test_async(ctx: &GpuContext) -> Result<SmokeTestReport, String> {
         .map_err(|e| format!("map_async channel closed: {e}"))?
         .map_err(|e| format!("buffer map failed: {e}"))?;
 
-    let mapped = buffer_slice.get_mapped_range();
+    let mapped = buffer_slice
+        .get_mapped_range()
+        .map_err(|e| format!("get_mapped_range failed: {e:?}"))?;
     let result: &[u32] = bytemuck::cast_slice(&mapped);
     for (i, &v) in result.iter().enumerate() {
         let expected = i as u32 + 1;

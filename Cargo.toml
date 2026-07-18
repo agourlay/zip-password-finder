@@ -23,8 +23,8 @@ humantime = "2.3.0"
 ctrlc = "3.5"
 either = "1.16.0"
 sevenz-rust2 = { version = "0.21.3", features = ["aes256", "util"] } # aes256 for encrypted archives, util for the reader helpers; default codecs (lzma/lzma2/...) stay enabled
-wgpu = "29.0.1"
-pollster = "0.4.0"
+wgpu = "30.0.0"
+pollster = "1.0.1"
 bytemuck = "1.25.0"
 
 [profile.release]

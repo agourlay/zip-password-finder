@@ -134,7 +134,9 @@ async fn sha1_gpu_async(ctx: &GpuContext, message: &[u8]) -> Result<[u8; 20], St
         .map_err(|e| format!("map_async channel closed: {e}"))?
         .map_err(|e| format!("buffer map failed: {e}"))?;
 
-    let mapped = slice.get_mapped_range();
+    let mapped = slice
+        .get_mapped_range()
+        .map_err(|e| format!("get_mapped_range failed: {e:?}"))?;
     let state: &[u32] = bytemuck::cast_slice(&mapped);
     let mut digest = [0u8; 20];
     for (i, w) in state.iter().enumerate() {

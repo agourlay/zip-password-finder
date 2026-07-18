@@ -315,7 +315,9 @@ impl<'gpu> Pbkdf2Context<'gpu> {
             .map_err(|e| PbkdfError::Gpu(format!("map_async channel closed: {e}")))?
             .map_err(|e| PbkdfError::Gpu(format!("buffer map failed: {e}")))?;
 
-        let mapped = slice.get_mapped_range();
+        let mapped = slice
+            .get_mapped_range()
+            .map_err(|e| PbkdfError::Gpu(format!("get_mapped_range failed: {e:?}")))?;
         let dk_words: &[u32] = bytemuck::cast_slice(&mapped);
 
         let mut out: Vec<Vec<u8>> = Vec::with_capacity(passwords.len());
