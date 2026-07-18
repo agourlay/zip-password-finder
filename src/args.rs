@@ -11,12 +11,31 @@ fn command() -> Command {
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .about(crate_description!())
+        .after_help(
+            "EXAMPLES:\n\
+             \n  \
+             Brute-force short passwords (default charset is letters+digits):\n  \
+                 zip-password-finder archive.zip --max-password-len 6\n\
+             \n  \
+             Use a dictionary file:\n  \
+                 zip-password-finder archive.zip -p wordlist.txt\n\
+             \n  \
+             Mask attack (3 lowercase letters + 2 digits):\n  \
+                 zip-password-finder archive.zip -m '?l?l?l?d?d'\n\
+             \n  \
+             GPU acceleration (AES archives only):\n  \
+                 zip-password-finder archive.zip --gpu -p wordlist.txt\n\
+             \n  \
+             Check that GPU acceleration is available on this system:\n  \
+                 zip-password-finder --gpu-smoke-test",
+        )
         .arg(
             Arg::new("inputFile")
                 .help("path to the zip or 7z input file")
                 .value_name("file")
                 .index(1)
-                .required(true),
+                // positional, but optional when only probing the GPU
+                .required_unless_present("gpuSmokeTest"),
         )
         .arg(
             Arg::new("workers")
@@ -81,7 +100,14 @@ fn command() -> Command {
         .arg(
             Arg::new("maxPasswordLen")
                 .value_parser(value_parser!(usize))
-                .help("maximum password length")
+                .help("maximum password length to brute-force")
+                .long_help(
+                    "maximum password length to brute-force. With the default 'lud' charset \
+                     (62 chars) the search space grows as 62^N: length 6 ≈ 56 billion candidates \
+                     (hours on GPU), length 8 ≈ 218 trillion (months), length 10 is effectively \
+                     infeasible. Increase this when you suspect a longer password — but expect \
+                     run-time to scale exponentially.",
+                )
                 .value_name("len")
                 .long("max-password-len")
                 .alias("maxPasswordLen")
@@ -178,10 +204,33 @@ fn command() -> Command {
                 .long("json")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("gpu")
+                .help("use the GPU (Vulkan/Metal/DX12 via wgpu) — requires AES-encrypted archive")
+                .long("gpu")
+                .short('g')
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("gpuSmokeTest")
+                .help("list GPU adapters and run a trivial compute kernel, then exit (does not require an input file)")
+                .long("gpu-smoke-test")
+                .action(ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("gpuBatchSize")
+                .value_parser(value_parser!(u32))
+                .help("override the GPU batch size (passwords per dispatch). When omitted, a value is picked automatically from the GPU type. Only used with --gpu.")
+                .value_name("size")
+                .long("gpu-batch-size")
+                .alias("gpuBatchSize")
+                .num_args(1)
+                .required(false),
+        )
 }
 
 pub struct Arguments {
-    pub input_file: String,
+    pub input_file: Option<String>,
     pub workers: Option<usize>,
     pub charset_choice: CharsetChoice,
     pub min_password_len: usize,
@@ -196,16 +245,21 @@ pub struct Arguments {
     pub custom_charsets: CustomCharsets,
     pub quiet: bool,
     pub json: bool,
+    pub use_gpu: bool,
+    pub gpu_smoke_test: bool,
+    pub gpu_batch_size: Option<u32>,
 }
 
 pub fn get_args() -> Result<Arguments, FinderError> {
     let command = command();
     let matches = command.get_matches();
 
-    let input_file: &String = matches.get_one("inputFile").expect("impossible");
-    if !Path::new(input_file).is_file() {
+    let input_file: Option<&String> = matches.try_get_one("inputFile")?;
+    if let Some(path) = input_file
+        && !Path::new(path).is_file()
+    {
         return Err(CliArgumentError {
-            message: format!("input file '{input_file}' does not exist"),
+            message: format!("input file '{path}' does not exist"),
         });
     }
 
@@ -309,8 +363,20 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         }
     }
 
+    let use_gpu = matches.get_flag("gpu");
+    let gpu_smoke_test = matches.get_flag("gpuSmokeTest");
+
+    let gpu_batch_size: Option<&u32> = matches.try_get_one("gpuBatchSize")?;
+    if let Some(&v) = gpu_batch_size
+        && v == 0
+    {
+        return Err(CliArgumentError {
+            message: "'--gpu-batch-size' must be positive".to_string(),
+        });
+    }
+
     Ok(Arguments {
-        input_file: input_file.clone(),
+        input_file: input_file.cloned(),
         workers: workers.copied(),
         charset_choice,
         min_password_len: *min_password_len,
@@ -323,6 +389,9 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         custom_charsets,
         quiet: matches.get_flag("quiet"),
         json: matches.get_flag("json"),
+        use_gpu,
+        gpu_smoke_test,
+        gpu_batch_size: gpu_batch_size.copied(),
     })
 }
 

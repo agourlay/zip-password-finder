@@ -1,6 +1,8 @@
 mod args;
 mod charsets;
 mod finder_errors;
+mod gpu;
+mod gpu_worker;
 mod password_finder;
 mod password_gen;
 mod password_mask;
@@ -42,12 +44,19 @@ fn is_sevenz_archive(path: &str) -> bool {
 fn reject_inapplicable_options(
     is_sevenz: bool,
     file_number_explicit: bool,
+    use_gpu: bool,
 ) -> Result<(), FinderError> {
     if is_sevenz && file_number_explicit {
         return Err(FinderError::CliArgumentError {
             message:
                 "'--file-number' does not apply to 7z archives (every entry shares the password)"
                     .to_string(),
+        });
+    }
+    if is_sevenz && use_gpu {
+        return Err(FinderError::CliArgumentError {
+            message: "'--gpu' is not supported for 7z archives (GPU acceleration is ZIP-AES only)"
+                .to_string(),
         });
     }
     Ok(())
@@ -84,12 +93,23 @@ fn main_result() -> Result<bool, FinderError> {
         custom_charsets,
         quiet,
         json,
+        use_gpu,
+        gpu_smoke_test,
+        gpu_batch_size,
     } = get_args()?;
+
+    // --gpu-smoke-test exits before any of the search-related logic.
+    if gpu_smoke_test {
+        std::process::exit(gpu::run_smoke_test_cli());
+    }
+
+    let input_file =
+        input_file.expect("clap requires an input file unless --gpu-smoke-test is present");
 
     // Reject options that do not apply to the detected archive type before doing
     // any work, rather than silently ignoring them.
     let is_sevenz = is_sevenz_archive(&input_file);
-    reject_inapplicable_options(is_sevenz, file_number_explicit)?;
+    reject_inapplicable_options(is_sevenz, file_number_explicit, use_gpu)?;
 
     let strategy = if let Some(dict_path) = password_dictionary {
         let path = Path::new(&dict_path);
@@ -128,6 +148,8 @@ fn main_result() -> Result<bool, FinderError> {
             file_number,
             &strategy,
             quiet,
+            use_gpu,
+            gpu_batch_size,
             stop_signal,
         )?
     };
@@ -187,14 +209,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn file_number_rejected_only_for_sevenz_when_explicit() {
-        // 7z + explicit --file-number -> rejected
-        assert!(reject_inapplicable_options(true, true).is_err());
-        // 7z without an explicit --file-number (default) -> accepted
-        assert!(reject_inapplicable_options(true, false).is_ok());
-        // zip always accepts --file-number
-        assert!(reject_inapplicable_options(false, true).is_ok());
-        assert!(reject_inapplicable_options(false, false).is_ok());
+    fn options_rejected_only_for_sevenz() {
+        // 7z + explicit --file-number -> rejected; 7z + --gpu -> rejected
+        assert!(reject_inapplicable_options(true, true, false).is_err());
+        assert!(reject_inapplicable_options(true, false, true).is_err());
+        // 7z with neither -> accepted
+        assert!(reject_inapplicable_options(true, false, false).is_ok());
+        // zip accepts both
+        assert!(reject_inapplicable_options(false, true, true).is_ok());
+        assert!(reject_inapplicable_options(false, false, false).is_ok());
     }
 
     #[test]
