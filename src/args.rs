@@ -13,11 +13,9 @@ fn command() -> Command {
         .about(crate_description!())
         .arg(
             Arg::new("inputFile")
-                .help("path to zip input file")
-                .long("input-file")
-                .alias("inputFile")
-                .short('i')
-                .num_args(1)
+                .help("path to the zip or 7z input file")
+                .value_name("inputFile")
+                .index(1)
                 .required(true),
         )
         .arg(
@@ -162,7 +160,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     let input_file: &String = matches.get_one("inputFile").expect("impossible");
     if !Path::new(input_file).is_file() {
         return Err(CliArgumentError {
-            message: "'--input-file' does not exist".to_string(),
+            message: format!("input file '{input_file}' does not exist"),
         });
     }
 

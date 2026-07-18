@@ -29,7 +29,7 @@ The archive type is detected from the file's contents (not its extension), and a
 Generates all passwords for a given charset and password length range. This is the default mode when no dictionary or mask is provided.
 
 ```bash
-zip-password-finder -i archive.zip -c lud --min-password-len 1 --max-password-len 6
+zip-password-finder archive.zip -c lud --min-password-len 1 --max-password-len 6
 ```
 
 The available charset presets are:
@@ -50,7 +50,7 @@ Alternatively, a custom charset file can be provided with `--charset-file`. It s
 To resume an interrupted brute force search, use `--starting-password` to skip ahead:
 
 ```bash
-zip-password-finder -i archive.zip --starting-password "abc"
+zip-password-finder archive.zip --starting-password "abc"
 ```
 
 ### Dictionary
@@ -58,7 +58,7 @@ zip-password-finder -i archive.zip --starting-password "abc"
 Tests passwords from a text file, one word per line.
 
 ```bash
-zip-password-finder -i archive.zip -p wordlist.txt
+zip-password-finder archive.zip -p wordlist.txt
 ```
 
 ### Mask attack
@@ -66,7 +66,7 @@ zip-password-finder -i archive.zip -p wordlist.txt
 Generates passwords matching a pattern where each position has its own charset. This is useful when you know part of the password structure (e.g. starts with uppercase, ends with digits).
 
 ```bash
-zip-password-finder -i archive.zip --mask '?u?l?l?l?d?d'
+zip-password-finder archive.zip --mask '?u?l?l?l?d?d'
 ```
 
 The available mask tokens are:
@@ -94,16 +94,16 @@ Examples:
 
 ```bash
 # 3 lowercase letters followed by 2 digits
-zip-password-finder -i archive.zip --mask '?l?l?l?d?d'
+zip-password-finder archive.zip --mask '?l?l?l?d?d'
 
 # known prefix "pass" followed by 4 digits
-zip-password-finder -i archive.zip --mask 'pass?d?d?d?d'
+zip-password-finder archive.zip --mask 'pass?d?d?d?d'
 
 # uppercase, 4 lowercase, then a symbol
-zip-password-finder -i archive.zip --mask '?u?l?l?l?l?s'
+zip-password-finder archive.zip --mask '?u?l?l?l?l?s'
 
 # custom charset: 2 vowels followed by a digit
-zip-password-finder -i archive.zip -1 "aeiou" --mask '?1?1?d'
+zip-password-finder archive.zip -1 "aeiou" --mask '?1?1?d'
 ```
 
 ## 7z support
@@ -111,7 +111,7 @@ zip-password-finder -i archive.zip -1 "aeiou" --mask '?1?1?d'
 7z archives are supported transparently — point `-i` at a `.7z` file and use any of the attack modes above:
 
 ```bash
-zip-password-finder -i archive.7z -p wordlist.txt
+zip-password-finder archive.7z -p wordlist.txt
 ```
 
 Both content-encrypted archives and header-encrypted ones (`7z a -mhe=on`) are handled; the type is auto-detected from the file signature.
@@ -150,10 +150,12 @@ paru -S zip-password-finder
 ./zip-password-finder -h
 Find the password of protected ZIP files
 
-Usage: zip-password-finder [OPTIONS] --input-file <inputFile>
+Usage: zip-password-finder [OPTIONS] <inputFile>
+
+Arguments:
+  <inputFile>  path to the zip or 7z input file
 
 Options:
-  -i, --input-file <inputFile>                     path to zip input file
   -w, --workers <workers>                          number of workers
   -p, --password-dictionary <passwordDictionary>   path to a password dictionary file
   -c, --charset <charset>                          charset to use to generate password [default: lud]
