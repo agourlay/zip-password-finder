@@ -150,27 +150,27 @@ paru -S zip-password-finder
 ./zip-password-finder -h
 Find the password of protected ZIP files
 
-Usage: zip-password-finder [OPTIONS] <inputFile>
+Usage: zip-password-finder [OPTIONS] <file>
 
 Arguments:
-  <inputFile>  path to the zip or 7z input file
+  <file>  path to the zip or 7z input file
 
 Options:
-  -w, --workers <workers>                          number of workers
-  -p, --password-dictionary <passwordDictionary>   path to a password dictionary file
-  -c, --charset <charset>                          charset to use to generate password [default: lud]
-      --charset-file <charsetFile>                 path to a charset file
-      --min-password-len <minPasswordLen>          minimum password length [default: 1]
-      --max-password-len <maxPasswordLen>          maximum password length [default: 10]
-      --file-number <fileNumber>                   file number in the zip archive [default: 0]
-  -s, --starting-password <startingPassword>       password to start from
-  -m, --mask <mask>                                mask pattern for mask attack (e.g. '?l?l?l?d?d')
-  -1, --custom-charset-1 <customCharset1>          custom charset 1 for mask attack, referenced as ?1
-  -2, --custom-charset-2 <customCharset2>          custom charset 2 for mask attack, referenced as ?2
-  -3, --custom-charset-3 <customCharset3>          custom charset 3 for mask attack, referenced as ?3
-  -4, --custom-charset-4 <customCharset4>          custom charset 4 for mask attack, referenced as ?4
-  -h, --help                                       Print help
-  -V, --version                                    Print version
+  -w, --workers <count>               number of workers
+  -p, --password-dictionary <file>    path to a password dictionary file
+  -c, --charset <preset>              charset to use to generate password [default: lud]
+      --charset-file <file>           path to a charset file
+      --min-password-len <len>        minimum password length [default: 1]
+      --max-password-len <len>        maximum password length [default: 6]
+      --file-number <index>           file number in the zip archive [default: 0]
+  -s, --starting-password <password>  password to start from
+  -m, --mask <pattern>                mask pattern for mask attack (e.g. '?l?l?l?d?d')
+  -1, --custom-charset-1 <chars>      custom charset 1 for mask attack, referenced as ?1
+  -2, --custom-charset-2 <chars>      custom charset 2 for mask attack, referenced as ?2
+  -3, --custom-charset-3 <chars>      custom charset 3 for mask attack, referenced as ?3
+  -4, --custom-charset-4 <chars>      custom charset 4 for mask attack, referenced as ?4
+  -h, --help                          Print help
+  -V, --version                       Print version
 ```
 
 ## Performance

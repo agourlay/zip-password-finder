@@ -14,7 +14,7 @@ fn command() -> Command {
         .arg(
             Arg::new("inputFile")
                 .help("path to the zip or 7z input file")
-                .value_name("inputFile")
+                .value_name("file")
                 .index(1)
                 .required(true),
         )
@@ -22,6 +22,7 @@ fn command() -> Command {
             Arg::new("workers")
                 .value_parser(value_parser!(usize))
                 .help("number of workers")
+                .value_name("count")
                 .long("workers")
                 .short('w')
                 .num_args(1)
@@ -30,6 +31,7 @@ fn command() -> Command {
         .arg(
             Arg::new("passwordDictionary")
                 .help("path to a password dictionary file")
+                .value_name("file")
                 .long("password-dictionary")
                 .alias("passwordDictionary")
                 .short('p')
@@ -39,6 +41,7 @@ fn command() -> Command {
         .arg(
             Arg::new("charset")
                 .help("charset to use to generate password")
+                .value_name("preset")
                 .long("charset")
                 .short('c')
                 .default_value("lud")
@@ -47,15 +50,18 @@ fn command() -> Command {
         .arg(
             Arg::new("charsetFile")
                 .help("path to a charset file")
+                .value_name("file")
                 .long("charset-file")
                 .alias("charsetFile")
                 .num_args(1)
+                .conflicts_with_all(["passwordDictionary", "mask"])
                 .required(false),
         )
         .arg(
             Arg::new("minPasswordLen")
                 .value_parser(value_parser!(usize))
                 .help("minimum password length")
+                .value_name("len")
                 .long("min-password-len")
                 .alias("minPasswordLen")
                 .num_args(1)
@@ -66,16 +72,18 @@ fn command() -> Command {
             Arg::new("maxPasswordLen")
                 .value_parser(value_parser!(usize))
                 .help("maximum password length")
+                .value_name("len")
                 .long("max-password-len")
                 .alias("maxPasswordLen")
                 .num_args(1)
-                .default_value("10")
+                .default_value("6")
                 .required(false),
         )
         .arg(
             Arg::new("fileNumber")
                 .value_parser(value_parser!(usize))
                 .help("file number in the zip archive")
+                .value_name("index")
                 .long("file-number")
                 .alias("fileNumber")
                 .num_args(1)
@@ -85,54 +93,66 @@ fn command() -> Command {
         .arg(
             Arg::new("startingPassword")
                 .help("password to start from")
+                .value_name("password")
                 .long("starting-password")
                 .alias("startingPassword")
                 .short('s')
+                .conflicts_with_all(["passwordDictionary", "mask"])
                 .required(false),
         )
         .arg(
             Arg::new("mask")
                 .help("mask pattern for mask attack (e.g. '?l?l?l?d?d')")
                 .long_help("mask pattern for mask attack (e.g. '?l?l?l?d?d' for 3 lowercase + 2 digits).\n\nAvailable tokens:\n  ?l  lowercase letters [a-z]\n  ?u  uppercase letters [A-Z]\n  ?d  digits [0-9]\n  ?s  symbols\n  ?a  all printable (?l?u?d?s)\n  ?h  lowercase hex [0-9a-f]\n  ?H  uppercase hex [0-9A-F]\n  ?1  custom charset 1 (--custom-charset-1)\n  ?2  custom charset 2 (--custom-charset-2)\n  ?3  custom charset 3 (--custom-charset-3)\n  ?4  custom charset 4 (--custom-charset-4)\n  ??  literal '?'\n\nAny other character is treated as a literal.")
+                .value_name("pattern")
                 .long("mask")
                 .short('m')
                 .num_args(1)
+                .conflicts_with("passwordDictionary")
                 .required(false),
         )
         .arg(
             Arg::new("customCharset1")
                 .help("custom charset 1 for mask attack, referenced as ?1 (e.g. 'aeiou' or '?l?d')")
+                .value_name("chars")
                 .long("custom-charset-1")
                 .alias("customCharset1")
                 .short('1')
                 .num_args(1)
+                .requires("mask")
                 .required(false),
         )
         .arg(
             Arg::new("customCharset2")
                 .help("custom charset 2 for mask attack, referenced as ?2")
+                .value_name("chars")
                 .long("custom-charset-2")
                 .alias("customCharset2")
                 .short('2')
                 .num_args(1)
+                .requires("mask")
                 .required(false),
         )
         .arg(
             Arg::new("customCharset3")
                 .help("custom charset 3 for mask attack, referenced as ?3")
+                .value_name("chars")
                 .long("custom-charset-3")
                 .alias("customCharset3")
                 .short('3')
                 .num_args(1)
+                .requires("mask")
                 .required(false),
         )
         .arg(
             Arg::new("customCharset4")
                 .help("custom charset 4 for mask attack, referenced as ?4")
+                .value_name("chars")
                 .long("custom-charset-4")
                 .alias("customCharset4")
                 .short('4')
                 .num_args(1)
+                .requires("mask")
                 .required(false),
         )
 }
@@ -225,50 +245,26 @@ pub fn get_args() -> Result<Arguments, FinderError> {
 
     let mask: Option<&String> = matches.try_get_one("mask")?;
 
-    // parse custom charsets
-    // (clap arg id, user-facing flag name) — id is used for lookup, flag name
-    // for error messages.
+    // parse custom charsets (clap already guarantees these require --mask)
     let custom_charset_names = [
-        ("customCharset1", "--custom-charset-1"),
-        ("customCharset2", "--custom-charset-2"),
-        ("customCharset3", "--custom-charset-3"),
-        ("customCharset4", "--custom-charset-4"),
+        "customCharset1",
+        "customCharset2",
+        "customCharset3",
+        "customCharset4",
     ];
     let mut custom_charsets: CustomCharsets = [None, None, None, None];
-    for (i, (arg_id, flag_name)) in custom_charset_names.iter().enumerate() {
+    for (i, arg_id) in custom_charset_names.iter().enumerate() {
         let value: Option<&String> = matches.try_get_one(arg_id)?;
         if let Some(definition) = value {
-            if mask.is_none() {
-                return Err(CliArgumentError {
-                    message: format!("'{flag_name}' can only be used with --mask"),
-                });
-            }
             custom_charsets[i] = Some(parse_custom_charset(definition)?);
         }
     }
 
-    // validate that mask, dictionary, and starting_password are not used together
-    if mask.is_some() && password_dictionary.is_some() {
-        return Err(CliArgumentError {
-            message: "'--mask' cannot be used with a dictionary file".to_string(),
-        });
-    }
-
+    // Mutual exclusivity between the attack modes (mask / dictionary /
+    // starting-password) is enforced by clap; only the value-level checks that
+    // clap cannot express remain here.
     let starting_password: Option<&String> = matches.try_get_one("startingPassword")?;
     if let Some(starting_password) = starting_password {
-        // can't use with dictionary for now (a bit annoying to lookup in dictionary to start from a given word)
-        if password_dictionary.is_some() {
-            return Err(CliArgumentError {
-                message: "'--starting-password' cannot be used with a dictionary file".to_string(),
-            });
-        }
-
-        if mask.is_some() {
-            return Err(CliArgumentError {
-                message: "'--starting-password' cannot be used with mask attack".to_string(),
-            });
-        }
-
         // validate startingPassword regarding charset
         let charset = charset_from_choice(&charset_choice)?;
         let out_of_charset = starting_password.chars().any(|c| !charset.contains(&c));
