@@ -22,6 +22,7 @@ num_cpus = "1.17.0"
 humantime = "2.3.0"
 ctrlc = "3.5"
 either = "1.16.0"
+sevenz-rust2 = { version = "0.21.3", features = ["aes256", "util"] } # aes256 for encrypted archives, util for the reader helpers; default codecs (lzma/lzma2/...) stay enabled
 
 [profile.release]
 lto = "fat"

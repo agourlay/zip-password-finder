@@ -12,13 +12,15 @@ If this tool helped you recover an archive, consider [sponsoring the project on 
 
 ## Features
 
-- Supports both ZipCrypto and AES encryption
+- Supports ZIP (ZipCrypto + AES) and 7z (AES-256) archives
 - Multi-threaded, using all physical CPU cores by default
 - Three attack modes: brute force, dictionary, and mask attack
 - Graceful interruption with Ctrl-C, displaying the last password tested
 - Resume brute force from a specific password with `--starting-password`
 - Automatic detection of encrypted files within multi-file archives
 - Progress bar with throughput and ETA
+
+The archive type is detected from the file's contents (not its extension), and all three attack modes work the same way for both ZIP and 7z. See [7z support](#7z-support) for the caveats specific to 7z.
 
 ## Attack modes
 
@@ -103,6 +105,22 @@ zip-password-finder -i archive.zip --mask '?u?l?l?l?l?s'
 # custom charset: 2 vowels followed by a digit
 zip-password-finder -i archive.zip -1 "aeiou" --mask '?1?1?d'
 ```
+
+## 7z support
+
+7z archives are supported transparently — point `-i` at a `.7z` file and use any of the attack modes above:
+
+```bash
+zip-password-finder -i archive.7z -p wordlist.txt
+```
+
+Both content-encrypted archives and header-encrypted ones (`7z a -mhe=on`) are handled; the type is auto-detected from the file signature.
+
+A few things to keep in mind, all stemming from 7z's design rather than this tool:
+
+- **Expect a much lower throughput than ZIP.** 7z derives its AES-256 key by iterating SHA-256 ~524,288 times per candidate (vs. 1,000 PBKDF2 rounds for ZIP-AES). This is deliberate and makes **brute force impractical** for anything but very short passwords — a **dictionary or mask attack is the realistic approach**.
+- **AES-256 only**, which is what every recent 7z build produces.
+- Unlike ZIP, 7z has no cheap per-candidate verifier, so each password is fully decrypt-and-checked. The `--file-number` option does not apply; the first encrypted entry is used for verification.
 
 ## Installation
 

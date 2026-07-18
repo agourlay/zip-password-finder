@@ -6,18 +6,34 @@ mod password_gen;
 mod password_mask;
 mod password_reader;
 mod password_worker;
+mod sevenz_finder;
+mod sevenz_utils;
+mod sevenz_worker;
 mod zip_utils;
 
 use crate::args::{Arguments, get_args};
 use crate::finder_errors::FinderError;
 use crate::password_finder::Strategy::{GenPasswords, MaskGenPasswords, PasswordFile};
 use crate::password_finder::password_finder;
+use crate::sevenz_finder::sevenz_password_finder;
 
 use crate::charsets::charset_from_choice;
 use crate::password_mask::parse_mask;
+use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+// Route by content, not extension: peek at the leading bytes and treat the file
+// as 7z only if it carries the 7z signature. Anything else falls through to the
+// existing zip path.
+fn is_sevenz_archive(path: &str) -> bool {
+    let mut buf = [0u8; 6];
+    std::fs::File::open(path)
+        .and_then(|mut f| f.read_exact(&mut buf))
+        .map(|()| sevenz_utils::has_sevenz_signature(&buf))
+        .unwrap_or(false)
+}
 
 fn main() {
     let result = main_result();
@@ -73,7 +89,11 @@ fn main_result() -> Result<(), FinderError> {
     ctrlc::set_handler(move || stop_signal_interrupt.store(true, Ordering::Relaxed))
         .expect("Error setting Ctrl-C handler");
 
-    let password = password_finder(&input_file, workers, file_number, &strategy, stop_signal)?;
+    let password = if is_sevenz_archive(&input_file) {
+        sevenz_password_finder(&input_file, workers, &strategy, stop_signal)?
+    } else {
+        password_finder(&input_file, workers, file_number, &strategy, stop_signal)?
+    };
     let elapsed = start_time.elapsed();
     // display pretty time
     let elapsed = humantime::format_duration(elapsed);

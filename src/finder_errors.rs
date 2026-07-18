@@ -8,6 +8,8 @@ pub enum FinderError {
     StdIoError { e: std::io::Error },
     #[error("Invalid zip file error - {message}")]
     InvalidZip { message: String },
+    #[error("Invalid 7z file error - {message}")]
+    InvalidSevenZip { message: String },
     #[error("CLI argument error - {message:?}")]
     CliArgumentError { message: String },
     #[error("CLI argument error ({e})")]
