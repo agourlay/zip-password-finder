@@ -14,7 +14,8 @@ fn command() -> Command {
         .arg(
             Arg::new("inputFile")
                 .help("path to zip input file")
-                .long("inputFile")
+                .long("input-file")
+                .alias("inputFile")
                 .short('i')
                 .num_args(1)
                 .required(true),
@@ -31,7 +32,8 @@ fn command() -> Command {
         .arg(
             Arg::new("passwordDictionary")
                 .help("path to a password dictionary file")
-                .long("passwordDictionary")
+                .long("password-dictionary")
+                .alias("passwordDictionary")
                 .short('p')
                 .num_args(1)
                 .required(false),
@@ -47,7 +49,8 @@ fn command() -> Command {
         .arg(
             Arg::new("charsetFile")
                 .help("path to a charset file")
-                .long("charsetFile")
+                .long("charset-file")
+                .alias("charsetFile")
                 .num_args(1)
                 .required(false),
         )
@@ -55,7 +58,8 @@ fn command() -> Command {
             Arg::new("minPasswordLen")
                 .value_parser(value_parser!(usize))
                 .help("minimum password length")
-                .long("minPasswordLen")
+                .long("min-password-len")
+                .alias("minPasswordLen")
                 .num_args(1)
                 .default_value("1")
                 .required(false),
@@ -64,7 +68,8 @@ fn command() -> Command {
             Arg::new("maxPasswordLen")
                 .value_parser(value_parser!(usize))
                 .help("maximum password length")
-                .long("maxPasswordLen")
+                .long("max-password-len")
+                .alias("maxPasswordLen")
                 .num_args(1)
                 .default_value("10")
                 .required(false),
@@ -73,7 +78,8 @@ fn command() -> Command {
             Arg::new("fileNumber")
                 .value_parser(value_parser!(usize))
                 .help("file number in the zip archive")
-                .long("fileNumber")
+                .long("file-number")
+                .alias("fileNumber")
                 .num_args(1)
                 .default_value("0")
                 .required(false),
@@ -81,14 +87,15 @@ fn command() -> Command {
         .arg(
             Arg::new("startingPassword")
                 .help("password to start from")
-                .long("startingPassword")
+                .long("starting-password")
+                .alias("startingPassword")
                 .short('s')
                 .required(false),
         )
         .arg(
             Arg::new("mask")
                 .help("mask pattern for mask attack (e.g. '?l?l?l?d?d')")
-                .long_help("mask pattern for mask attack (e.g. '?l?l?l?d?d' for 3 lowercase + 2 digits).\n\nAvailable tokens:\n  ?l  lowercase letters [a-z]\n  ?u  uppercase letters [A-Z]\n  ?d  digits [0-9]\n  ?s  symbols\n  ?a  all printable (?l?u?d?s)\n  ?h  lowercase hex [0-9a-f]\n  ?H  uppercase hex [0-9A-F]\n  ?1  custom charset 1 (--customCharset1)\n  ?2  custom charset 2 (--customCharset2)\n  ?3  custom charset 3 (--customCharset3)\n  ?4  custom charset 4 (--customCharset4)\n  ??  literal '?'\n\nAny other character is treated as a literal.")
+                .long_help("mask pattern for mask attack (e.g. '?l?l?l?d?d' for 3 lowercase + 2 digits).\n\nAvailable tokens:\n  ?l  lowercase letters [a-z]\n  ?u  uppercase letters [A-Z]\n  ?d  digits [0-9]\n  ?s  symbols\n  ?a  all printable (?l?u?d?s)\n  ?h  lowercase hex [0-9a-f]\n  ?H  uppercase hex [0-9A-F]\n  ?1  custom charset 1 (--custom-charset-1)\n  ?2  custom charset 2 (--custom-charset-2)\n  ?3  custom charset 3 (--custom-charset-3)\n  ?4  custom charset 4 (--custom-charset-4)\n  ??  literal '?'\n\nAny other character is treated as a literal.")
                 .long("mask")
                 .short('m')
                 .num_args(1)
@@ -97,7 +104,8 @@ fn command() -> Command {
         .arg(
             Arg::new("customCharset1")
                 .help("custom charset 1 for mask attack, referenced as ?1 (e.g. 'aeiou' or '?l?d')")
-                .long("customCharset1")
+                .long("custom-charset-1")
+                .alias("customCharset1")
                 .short('1')
                 .num_args(1)
                 .required(false),
@@ -105,7 +113,8 @@ fn command() -> Command {
         .arg(
             Arg::new("customCharset2")
                 .help("custom charset 2 for mask attack, referenced as ?2")
-                .long("customCharset2")
+                .long("custom-charset-2")
+                .alias("customCharset2")
                 .short('2')
                 .num_args(1)
                 .required(false),
@@ -113,7 +122,8 @@ fn command() -> Command {
         .arg(
             Arg::new("customCharset3")
                 .help("custom charset 3 for mask attack, referenced as ?3")
-                .long("customCharset3")
+                .long("custom-charset-3")
+                .alias("customCharset3")
                 .short('3')
                 .num_args(1)
                 .required(false),
@@ -121,7 +131,8 @@ fn command() -> Command {
         .arg(
             Arg::new("customCharset4")
                 .help("custom charset 4 for mask attack, referenced as ?4")
-                .long("customCharset4")
+                .long("custom-charset-4")
+                .alias("customCharset4")
                 .short('4')
                 .num_args(1)
                 .required(false),
@@ -148,7 +159,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     let input_file: &String = matches.get_one("inputFile").expect("impossible");
     if !Path::new(input_file).is_file() {
         return Err(CliArgumentError {
-            message: "'inputFile' does not exist".to_string(),
+            message: "'--input-file' does not exist".to_string(),
         });
     }
 
@@ -157,7 +168,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         && !Path::new(&dict_path).is_file()
     {
         return Err(CliArgumentError {
-            message: "'passwordDictionary' does not exist".to_string(),
+            message: "'--password-dictionary' does not exist".to_string(),
         });
     }
 
@@ -168,34 +179,35 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         && !Path::new(&charset_file_path).is_file()
     {
         return Err(CliArgumentError {
-            message: "'charsetFile' does not exist".to_string(),
+            message: "'--charset-file' does not exist".to_string(),
         });
     }
 
     let workers: Option<&usize> = matches.try_get_one("workers")?;
     if workers == Some(&0) {
         return Err(CliArgumentError {
-            message: "'workers' must be positive".to_string(),
+            message: "'--workers' must be positive".to_string(),
         });
     }
 
     let min_password_len: &usize = matches.get_one("minPasswordLen").expect("impossible");
     if *min_password_len == 0 {
         return Err(CliArgumentError {
-            message: "'minPasswordLen' must be positive".to_string(),
+            message: "'--min-password-len' must be positive".to_string(),
         });
     }
 
     let max_password_len: &usize = matches.get_one("maxPasswordLen").expect("impossible");
     if *max_password_len == 0 {
         return Err(CliArgumentError {
-            message: "'maxPasswordLen' must be positive".to_string(),
+            message: "'--max-password-len' must be positive".to_string(),
         });
     }
 
     if min_password_len > max_password_len {
         return Err(CliArgumentError {
-            message: "'maxPasswordLen' must be equal or greater than 'minPasswordLen'".to_string(),
+            message: "'--max-password-len' must be equal or greater than '--min-password-len'"
+                .to_string(),
         });
     }
 
@@ -211,19 +223,21 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     let mask: Option<&String> = matches.try_get_one("mask")?;
 
     // parse custom charsets
+    // (clap arg id, user-facing flag name) — id is used for lookup, flag name
+    // for error messages.
     let custom_charset_names = [
-        "customCharset1",
-        "customCharset2",
-        "customCharset3",
-        "customCharset4",
+        ("customCharset1", "--custom-charset-1"),
+        ("customCharset2", "--custom-charset-2"),
+        ("customCharset3", "--custom-charset-3"),
+        ("customCharset4", "--custom-charset-4"),
     ];
     let mut custom_charsets: CustomCharsets = [None, None, None, None];
-    for (i, name) in custom_charset_names.iter().enumerate() {
-        let value: Option<&String> = matches.try_get_one(name)?;
+    for (i, (arg_id, flag_name)) in custom_charset_names.iter().enumerate() {
+        let value: Option<&String> = matches.try_get_one(arg_id)?;
         if let Some(definition) = value {
             if mask.is_none() {
                 return Err(CliArgumentError {
-                    message: format!("'--{name}' can only be used with --mask"),
+                    message: format!("'{flag_name}' can only be used with --mask"),
                 });
             }
             custom_charsets[i] = Some(parse_custom_charset(definition)?);
@@ -233,7 +247,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
     // validate that mask, dictionary, and starting_password are not used together
     if mask.is_some() && password_dictionary.is_some() {
         return Err(CliArgumentError {
-            message: "'mask' cannot be used with a dictionary file".to_string(),
+            message: "'--mask' cannot be used with a dictionary file".to_string(),
         });
     }
 
@@ -242,13 +256,13 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         // can't use with dictionary for now (a bit annoying to lookup in dictionary to start from a given word)
         if password_dictionary.is_some() {
             return Err(CliArgumentError {
-                message: "'startingPassword' cannot be used with a dictionary file".to_string(),
+                message: "'--starting-password' cannot be used with a dictionary file".to_string(),
             });
         }
 
         if mask.is_some() {
             return Err(CliArgumentError {
-                message: "'startingPassword' cannot be used with mask attack".to_string(),
+                message: "'--starting-password' cannot be used with mask attack".to_string(),
             });
         }
 
@@ -257,7 +271,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         let out_of_charset = starting_password.chars().any(|c| !charset.contains(&c));
         if out_of_charset {
             return Err(CliArgumentError {
-                message: "'startingPassword' uses characters out of the generation charset"
+                message: "'--starting-password' uses characters out of the generation charset"
                     .to_string(),
             });
         }
@@ -266,7 +280,7 @@ pub fn get_args() -> Result<Arguments, FinderError> {
         let starting_password_len = starting_password.chars().count();
         if starting_password_len > *max_password_len || starting_password_len < *min_password_len {
             return Err(CliArgumentError {
-                message: "'startingPassword' does not respect 'max_password_len' or 'min_password_len' configuration".to_string(),
+                message: "'--starting-password' does not respect '--max-password-len' or '--min-password-len' configuration".to_string(),
             });
         }
     }

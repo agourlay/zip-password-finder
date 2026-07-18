@@ -16,7 +16,7 @@ If this tool helped you recover an archive, consider [sponsoring the project on 
 - Multi-threaded, using all physical CPU cores by default
 - Three attack modes: brute force, dictionary, and mask attack
 - Graceful interruption with Ctrl-C, displaying the last password tested
-- Resume brute force from a specific password with `--startingPassword`
+- Resume brute force from a specific password with `--starting-password`
 - Automatic detection of encrypted files within multi-file archives
 - Progress bar with throughput and ETA
 
@@ -27,7 +27,7 @@ If this tool helped you recover an archive, consider [sponsoring the project on 
 Generates all passwords for a given charset and password length range. This is the default mode when no dictionary or mask is provided.
 
 ```bash
-zip-password-finder -i archive.zip -c lud --minPasswordLen 1 --maxPasswordLen 6
+zip-password-finder -i archive.zip -c lud --min-password-len 1 --max-password-len 6
 ```
 
 The available charset presets are:
@@ -43,12 +43,12 @@ The available charset presets are:
 
 Presets can be combined, e.g. `lud` (the default) uses lowercase + uppercase + digits.
 
-Alternatively, a custom charset file can be provided with `--charsetFile`. It should be a text file containing a single line of characters to use for the generation.
+Alternatively, a custom charset file can be provided with `--charset-file`. It should be a text file containing a single line of characters to use for the generation.
 
-To resume an interrupted brute force search, use `--startingPassword` to skip ahead:
+To resume an interrupted brute force search, use `--starting-password` to skip ahead:
 
 ```bash
-zip-password-finder -i archive.zip --startingPassword "abc"
+zip-password-finder -i archive.zip --starting-password "abc"
 ```
 
 ### Dictionary
@@ -77,16 +77,16 @@ The available mask tokens are:
   ?a | all printable (lowercase + uppercase + digits + symbols)
   ?h | lowercase hex [0-9a-f]
   ?H | uppercase hex [0-9A-F]
-  ?1 | custom charset 1 (--customCharset1)
-  ?2 | custom charset 2 (--customCharset2)
-  ?3 | custom charset 3 (--customCharset3)
-  ?4 | custom charset 4 (--customCharset4)
+  ?1 | custom charset 1 (--custom-charset-1)
+  ?2 | custom charset 2 (--custom-charset-2)
+  ?3 | custom charset 3 (--custom-charset-3)
+  ?4 | custom charset 4 (--custom-charset-4)
   ?? | literal '?'
 ```
 
 Any other character in the mask is treated as a literal.
 
-Custom charsets are defined with `--customCharset1` through `--customCharset4` and can contain literal characters and/or built-in tokens. For example, `--customCharset1 "aeiou"` defines vowels, and `--customCharset1 "?l?d"` defines lowercase letters + digits.
+Custom charsets are defined with `--custom-charset-1` through `--custom-charset-4` and can contain literal characters and/or built-in tokens. For example, `--custom-charset-1 "aeiou"` defines vowels, and `--custom-charset-1 "?l?d"` defines lowercase letters + digits.
 
 Examples:
 
@@ -132,25 +132,25 @@ paru -S zip-password-finder
 ./zip-password-finder -h
 Find the password of protected ZIP files
 
-Usage: zip-password-finder [OPTIONS] --inputFile <inputFile>
+Usage: zip-password-finder [OPTIONS] --input-file <inputFile>
 
 Options:
-  -i, --inputFile <inputFile>                    path to zip input file
-  -w, --workers <workers>                        number of workers
-  -p, --passwordDictionary <passwordDictionary>  path to a password dictionary file
-  -c, --charset <charset>                        charset to use to generate password [default: lud]
-      --charsetFile <charsetFile>                path to a charset file
-      --minPasswordLen <minPasswordLen>          minimum password length [default: 1]
-      --maxPasswordLen <maxPasswordLen>          maximum password length [default: 10]
-      --fileNumber <fileNumber>                  file number in the zip archive [default: 0]
-  -s, --startingPassword <startingPassword>      password to start from
-  -m, --mask <mask>                              mask pattern for mask attack (e.g. '?l?l?l?d?d')
-  -1, --customCharset1 <customCharset1>          custom charset 1 for mask attack, referenced as ?1
-  -2, --customCharset2 <customCharset2>          custom charset 2 for mask attack, referenced as ?2
-  -3, --customCharset3 <customCharset3>          custom charset 3 for mask attack, referenced as ?3
-  -4, --customCharset4 <customCharset4>          custom charset 4 for mask attack, referenced as ?4
-  -h, --help                                     Print help
-  -V, --version                                  Print version
+  -i, --input-file <inputFile>                     path to zip input file
+  -w, --workers <workers>                          number of workers
+  -p, --password-dictionary <passwordDictionary>   path to a password dictionary file
+  -c, --charset <charset>                          charset to use to generate password [default: lud]
+      --charset-file <charsetFile>                 path to a charset file
+      --min-password-len <minPasswordLen>          minimum password length [default: 1]
+      --max-password-len <maxPasswordLen>          maximum password length [default: 10]
+      --file-number <fileNumber>                   file number in the zip archive [default: 0]
+  -s, --starting-password <startingPassword>       password to start from
+  -m, --mask <mask>                                mask pattern for mask attack (e.g. '?l?l?l?d?d')
+  -1, --custom-charset-1 <customCharset1>          custom charset 1 for mask attack, referenced as ?1
+  -2, --custom-charset-2 <customCharset2>          custom charset 2 for mask attack, referenced as ?2
+  -3, --custom-charset-3 <customCharset3>          custom charset 3 for mask attack, referenced as ?3
+  -4, --custom-charset-4 <customCharset4>          custom charset 4 for mask attack, referenced as ?4
+  -h, --help                                       Print help
+  -V, --version                                    Print version
 ```
 
 ## Performance

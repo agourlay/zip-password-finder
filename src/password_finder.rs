@@ -53,7 +53,7 @@ pub fn password_finder(
             progress_bar.println(format!("Targeting file '{file_name}' within the archive"));
         }
         None => progress_bar.println(format!(
-            "Cannot get file name from archive for --fileNumber {file_number}"
+            "Cannot get file name from archive for --file-number {file_number}"
         )),
     }
 

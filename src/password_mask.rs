@@ -118,7 +118,7 @@ pub fn parse_mask(mask: &str, custom_charsets: &CustomCharsets) -> Result<Parsed
                         None => {
                             return Err(CliArgumentError {
                                 message: format!(
-                                    "Custom charset ?{token} used in mask but --customCharset{token} not provided"
+                                    "Custom charset ?{token} used in mask but --custom-charset-{token} not provided"
                                 ),
                             });
                         }
