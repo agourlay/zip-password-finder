@@ -1,11 +1,13 @@
 use crate::gpu::GpuContext;
-use crate::gpu::pbkdf2::{Pbkdf2Context, SHA1_OUTPUT_BYTES};
+use crate::gpu::pbkdf2::{HMAC_BLOCK_BYTES, Pbkdf2Context, SHA1_OUTPUT_BYTES};
 use crate::password_finder::Strategy;
 use crate::password_gen::password_generator_iter;
 use crate::password_mask::mask_password_iter;
 use crate::password_reader::password_dictionary_reader_iter;
 use crate::zip_utils::AesInfo;
+use hmac::{Hmac, KeyInit, Mac};
 use indicatif::ProgressBar;
+use sha1::Sha1;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
@@ -19,6 +21,47 @@ use zip::result::ZipError;
 
 // PBKDF2 iteration count fixed by the WinZip-AES spec (APPNOTE 7.2 § 7.2).
 const WINZIP_AES_PBKDF2_ITERATIONS: u32 = 1000;
+
+/// Confirm whether `derived_key` (PBKDF2 output for `password`, from GPU or CPU)
+/// is the archive password. First the cheap 2-byte verifier, then — for a
+/// zero-length entry, which the reader cannot authenticate — the WinZip
+/// HMAC-SHA1-80 auth code, otherwise a full decrypt-and-read.
+#[allow(clippy::too_many_arguments)]
+fn key_confirms(
+    derived_key: &[u8],
+    password: &[u8],
+    dk_len: usize,
+    aes_key_length: usize,
+    verifier: &[u8; 2],
+    empty_entry_auth: Option<&[u8; 10]>,
+    archive: &mut ZipArchive<BufReader<File>>,
+    file_number: usize,
+    extraction_buffer: &mut Vec<u8>,
+) -> bool {
+    if derived_key[dk_len - 2..] != *verifier {
+        return false;
+    }
+    if let Some(expected_auth) = empty_entry_auth {
+        // Empty entry: no ciphertext to authenticate, so verify the auth code.
+        let hmac_key = &derived_key[aes_key_length..aes_key_length * 2];
+        let mac =
+            <Hmac<Sha1> as KeyInit>::new_from_slice(hmac_key).expect("HMAC accepts any key length");
+        return mac.finalize().into_bytes()[..10] == *expected_auth;
+    }
+    // 1/65536 verifier false-positive rate — confirm by a full archive read.
+    match archive.by_index_decrypt(file_number, password) {
+        Err(ZipError::InvalidPassword) => false,
+        Err(e) => panic!("Unexpected error {e:?}"),
+        Ok(zip) if zip.enclosed_name().is_none() => false,
+        Ok(mut zip) => {
+            let zip_size = zip.size() as usize;
+            extraction_buffer.reserve(zip_size);
+            let confirmed = matches!(zip.read_to_end(extraction_buffer), Ok(n) if n == zip_size);
+            extraction_buffer.clear();
+            confirmed
+        }
+    }
+}
 
 fn iterator_for_strategy(
     strategy: Strategy,
@@ -83,6 +126,14 @@ pub fn gpu_password_checker(
             let salt = aes_info.salt;
             let verifier = aes_info.verification_value;
             let dk_len = aes_info.derived_key_length;
+            let aes_key_length = aes_info.aes_key_length;
+            let empty_entry_auth = aes_info.empty_entry_auth;
+
+            let send_found = |pw: &[u8]| {
+                send_password_found
+                    .send(String::from_utf8_lossy(pw).into_owned())
+                    .expect("send found password should not fail");
+            };
 
             loop {
                 if stop_signal.load(Ordering::Relaxed) {
@@ -100,40 +151,61 @@ pub fn gpu_password_checker(
                     break;
                 }
 
-                let batch_refs: Vec<&[u8]> = batch.iter().map(Vec::as_slice).collect();
+                // The GPU kernel only handles passwords up to one HMAC block.
+                // Longer ones are rare (WinZip passwords are short) but must not
+                // abort the run — derive their keys on the CPU instead.
+                let gpu_batch: Vec<&[u8]> = batch
+                    .iter()
+                    .map(Vec::as_slice)
+                    .filter(|pw| pw.len() <= HMAC_BLOCK_BYTES)
+                    .collect();
                 let derived =
-                    match pctx.derive(&batch_refs, &salt, WINZIP_AES_PBKDF2_ITERATIONS, dk_len) {
+                    match pctx.derive(&gpu_batch, &salt, WINZIP_AES_PBKDF2_ITERATIONS, dk_len) {
                         Ok(d) => d,
                         Err(e) => {
                             progress_bar.println(format!("GPU PBKDF2 failed: {e}"));
                             return;
                         }
                     };
-
-                for (i, dk) in derived.iter().enumerate() {
-                    if dk[dk_len - 2..] != verifier {
-                        continue;
+                for (dk, pw) in derived.iter().zip(gpu_batch.iter()) {
+                    if key_confirms(
+                        dk,
+                        pw,
+                        dk_len,
+                        aes_key_length,
+                        &verifier,
+                        empty_entry_auth.as_ref(),
+                        &mut archive,
+                        file_number,
+                        &mut extraction_buffer,
+                    ) {
+                        send_found(pw);
+                        return;
                     }
-                    // 1/65536 false-positive rate — verify by full archive read.
-                    let pw_bytes = &batch[i];
-                    match archive.by_index_decrypt(file_number, pw_bytes) {
-                        Err(ZipError::InvalidPassword) => continue,
-                        Err(e) => panic!("Unexpected error {e:?}"),
-                        Ok(zip) if zip.enclosed_name().is_none() => continue,
-                        Ok(mut zip) => {
-                            let zip_size = zip.size() as usize;
-                            extraction_buffer.reserve(zip_size);
-                            if let Ok(data_read) = zip.read_to_end(&mut extraction_buffer)
-                                && data_read == zip_size
-                            {
-                                let password_str = String::from_utf8_lossy(pw_bytes).into_owned();
-                                send_password_found
-                                    .send(password_str)
-                                    .expect("send found password should not fail");
-                                return;
-                            }
-                            extraction_buffer.clear();
-                        }
+                }
+
+                for pw in batch.iter().filter(|pw| pw.len() > HMAC_BLOCK_BYTES) {
+                    let mut cpu_dk = vec![0u8; dk_len];
+                    pbkdf2::pbkdf2::<Hmac<Sha1>>(
+                        pw,
+                        &salt,
+                        WINZIP_AES_PBKDF2_ITERATIONS,
+                        &mut cpu_dk,
+                    )
+                    .expect("PBKDF2 should not fail");
+                    if key_confirms(
+                        &cpu_dk,
+                        pw,
+                        dk_len,
+                        aes_key_length,
+                        &verifier,
+                        empty_entry_auth.as_ref(),
+                        &mut archive,
+                        file_number,
+                        &mut extraction_buffer,
+                    ) {
+                        send_found(pw);
+                        return;
                     }
                 }
 
