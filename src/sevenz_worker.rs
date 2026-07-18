@@ -47,8 +47,6 @@ pub fn sevenz_password_checker(
         .name(format!("7z-worker-{index}"))
         .spawn(move || {
             let first_worker = index == 1;
-            let batching_delta = worker_count as u64 * 500;
-            let progress_bar_delta = batching_delta * worker_count as u64;
 
             // Only the first worker drives the shared progress bar; the password
             // generator logs its own progress, so hide it for the others.
@@ -60,8 +58,20 @@ pub fn sevenz_password_checker(
             let passwords = passwords_for_strategy(strategy, generator_pb);
             let passwords = filter_for_worker_index(passwords, worker_count, index);
 
-            let mut processed_delta: u64 = 0;
+            let mut last_password = String::new();
             for password_bytes in passwords {
+                // Each 7z candidate runs a heavy key derivation (~ms), so poll
+                // the stop flag every iteration: the atomic load is free next to
+                // the KDF, and a coarse check would leave every other worker
+                // grinding for seconds after the password is already found or
+                // Ctrl-C was pressed.
+                if stop_signal.load(Ordering::Relaxed) {
+                    if first_worker && !last_password.is_empty() {
+                        progress_bar.println(format!("Last password processed:{last_password}"));
+                    }
+                    break;
+                }
+
                 let password = String::from_utf8_lossy(&password_bytes);
                 // A structural error cannot happen here: validation already
                 // probed the archive and rejected unsupported codecs, so any
@@ -73,18 +83,12 @@ pub fn sevenz_password_checker(
                     break;
                 }
 
-                processed_delta += 1;
-                if processed_delta == batching_delta {
-                    if first_worker {
-                        progress_bar.inc(progress_bar_delta);
-                    }
-                    if stop_signal.load(Ordering::Relaxed) {
-                        if first_worker {
-                            progress_bar.println(format!("Last password processed:{password}"));
-                        }
-                        break;
-                    }
-                    processed_delta = 0;
+                // Advance the shared bar by one slot per worker each iteration;
+                // per-candidate updates are cheap since the draw target is
+                // throttled, and they keep the bar moving on slow 7z runs.
+                if first_worker {
+                    progress_bar.inc(worker_count as u64);
+                    last_password = password.into_owned();
                 }
             }
         })
