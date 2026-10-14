@@ -14,7 +14,22 @@ pub fn charset_from_choice(charset_choice: &CharsetChoice) -> Result<Vec<char>, 
     // make sure the charset does not contain duplicates
     charset.sort_unstable();
     charset.dedup();
+    ensure_ascii(&charset)?;
     Ok(charset)
+}
+
+/// The generators operate one byte per character, so non-ASCII characters cannot
+/// be represented faithfully. Reject them with a clear error instead of
+/// panicking (brute force) or silently truncating multi-byte characters (mask).
+pub fn ensure_ascii(charset: &[char]) -> Result<(), FinderError> {
+    if let Some(c) = charset.iter().find(|c| !c.is_ascii()) {
+        return Err(CliArgumentError {
+            message: format!(
+                "charset contains non-ASCII character '{c}'; only ASCII characters are supported"
+            ),
+        });
+    }
+    Ok(())
 }
 
 fn charset_from_file(p0: &String) -> Result<Vec<char>, FinderError> {
@@ -154,6 +169,13 @@ mod tests {
         expected.dedup();
         assert_eq!(charset, expected);
         assert_eq!(charset.len(), 16); // 0-9 + a-f, no duplicates
+    }
+
+    #[test]
+    fn ensure_ascii_rejects_non_ascii() {
+        assert!(ensure_ascii(&['a', 'b', 'c']).is_ok());
+        assert!(ensure_ascii(&['a', 'é', 'c']).is_err());
+        assert!(ensure_ascii(&['€']).is_err());
     }
 
     #[test]

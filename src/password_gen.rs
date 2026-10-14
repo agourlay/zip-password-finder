@@ -1,10 +1,15 @@
 use indicatif::ProgressBar;
 
 // compute the number of passwords to generate for range [min_size, max_size]
+//
+// Uses saturating arithmetic so an astronomically large search space caps at
+// `usize::MAX` instead of wrapping to a small (wrong) value, which would make the
+// generator terminate early and skip valid passwords.
 pub fn password_generator_count(charset_len: usize, min_size: usize, max_size: usize) -> usize {
-    let mut total_password_count = 0;
+    let mut total_password_count: usize = 0;
     for i in min_size..=max_size {
-        total_password_count += charset_len.pow(i as u32);
+        let count = charset_len.checked_pow(i as u32).unwrap_or(usize::MAX);
+        total_password_count = total_password_count.saturating_add(count);
     }
     total_password_count
 }
@@ -16,20 +21,22 @@ pub fn password_count_already_generated(
     starting_password: &str,
 ) -> usize {
     let base = charset.len();
-    let mut count = 0;
+    let mut count: usize = 0;
 
     // Step 1: Count all passwords of shorter lengths
     for len in min_size..starting_password.len() {
-        count += base.pow(len as u32);
+        let c = base.checked_pow(len as u32).unwrap_or(usize::MAX);
+        count = count.saturating_add(c);
     }
 
     // Step 2: Interpret starting_password as a base-N number
     for (i, c) in starting_password.chars().rev().enumerate() {
         let pos = charset.iter().position(|x| *x == c).unwrap();
-        count += pos * base.pow(i as u32);
+        let place = base.checked_pow(i as u32).unwrap_or(usize::MAX);
+        count = count.saturating_add(pos.saturating_mul(place));
     }
 
-    count + 1 // Include the current password
+    count.saturating_add(1) // Include the current password
 }
 
 struct PasswordGenerator {
@@ -135,6 +142,12 @@ impl Iterator for PasswordGenerator {
         if carry {
             // All positions overflowed -> increase length
             let new_len = self.password.len() + 1;
+            // Stop on length rather than relying solely on `total_to_generate`,
+            // which saturates for very large search spaces and would otherwise
+            // let a spurious over-length password slip through.
+            if new_len > self.max_size {
+                return None;
+            }
             self.password = vec![self.charset[0]; new_len];
             let possibilities = self.charset_len.pow(new_len as u32);
             self.progress_bar.println(format!(
@@ -265,6 +278,24 @@ mod tests {
         assert_eq!(password_generator_count(3, 1, 1), 3);
         assert_eq!(password_generator_count(26, 1, 1), 26);
         assert_eq!(password_generator_count(10, 3, 3), 1000);
+    }
+
+    #[test]
+    fn password_count_saturates_on_overflow() {
+        // 95^20 vastly exceeds usize::MAX; it must saturate, not wrap to a small
+        // value (which would make the generator stop early and miss passwords).
+        assert_eq!(password_generator_count(95, 1, 20), usize::MAX);
+    }
+
+    #[test]
+    fn already_generated_count_saturates_on_overflow() {
+        let charset: Vec<char> = (0..95u8).map(|b| (b + 32) as char).collect();
+        let starting: String = std::iter::repeat_n('~', 20).collect();
+        // No panic / wrap; the value is clamped to usize::MAX.
+        assert_eq!(
+            password_count_already_generated(&charset, 1, &starting),
+            usize::MAX
+        );
     }
 
     #[test]

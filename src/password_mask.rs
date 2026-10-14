@@ -1,6 +1,6 @@
 use crate::charsets::{
     charset_digits, charset_lowercase_hex, charset_lowercase_letters, charset_symbols,
-    charset_uppercase_hex, charset_uppercase_letters,
+    charset_uppercase_hex, charset_uppercase_letters, ensure_ascii,
 };
 use crate::finder_errors::FinderError;
 use crate::finder_errors::FinderError::CliArgumentError;
@@ -84,6 +84,7 @@ pub fn parse_custom_charset(definition: &str) -> Result<Vec<char>, FinderError> 
         }
     }
 
+    ensure_ascii(&seen)?;
     Ok(seen)
 }
 
@@ -150,12 +151,23 @@ pub fn parse_mask(mask: &str, custom_charsets: &CustomCharsets) -> Result<Parsed
         });
     }
 
+    // Built-in tokens are ASCII; literal characters in the mask may not be.
+    for position in &positions {
+        ensure_ascii(position)?;
+    }
+
     Ok(ParsedMask { positions })
 }
 
 /// Compute the total number of passwords for a parsed mask.
+///
+/// Saturates at `usize::MAX` instead of wrapping, so an enormous mask space never
+/// collapses to a small (wrong) count that would stop the generator early.
 pub fn mask_password_count(mask: &ParsedMask) -> usize {
-    mask.positions.iter().map(|p| p.len()).product()
+    mask.positions
+        .iter()
+        .map(|p| p.len())
+        .fold(1usize, |acc, len| acc.saturating_mul(len))
 }
 
 struct MaskPasswordGenerator {
@@ -481,6 +493,23 @@ mod tests {
         assert_eq!(passwords.len(), 12);
         assert_eq!(passwords[0], b"a1x!");
         assert_eq!(passwords[11], b"b2x#");
+    }
+
+    #[test]
+    fn mask_count_saturates_on_overflow() {
+        // 20 positions of ?a (95 chars each) overflows usize; it must saturate.
+        let mask = parse_mask(&"?a".repeat(20), &NO_CUSTOM).unwrap();
+        assert_eq!(mask_password_count(&mask), usize::MAX);
+    }
+
+    #[test]
+    fn parse_mask_rejects_non_ascii_literal() {
+        assert!(parse_mask("abcé", &NO_CUSTOM).is_err());
+    }
+
+    #[test]
+    fn parse_custom_charset_rejects_non_ascii() {
+        assert!(parse_custom_charset("abcé").is_err());
     }
 
     #[test]
