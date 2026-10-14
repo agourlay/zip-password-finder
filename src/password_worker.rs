@@ -53,8 +53,8 @@ fn pbkdf2_aes_verifier(password: &[u8], salt: &[u8], derived_key_len: usize) -> 
 
     // PRF keyed on the password; set up the ipad/opad state once and clone it for
     // every iteration, like the pbkdf2 crate does internally.
-    let prf = <Hmac<Sha1> as KeyInit>::new_from_slice(password)
-        .expect("HMAC accepts any key length");
+    let prf =
+        <Hmac<Sha1> as KeyInit>::new_from_slice(password).expect("HMAC accepts any key length");
 
     // U_1 = PRF(salt || INT_BE(block_index))
     let mut mac = prf.clone();
