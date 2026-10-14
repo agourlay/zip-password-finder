@@ -35,6 +35,47 @@ pub fn filter_for_worker_index(
     }
 }
 
+/// Derive only the 2-byte WinZip-AES password verifier (the last two bytes of
+/// the PBKDF2-HMAC-SHA1 derived key).
+///
+/// PBKDF2 output blocks are computed independently, and the verifier always sits
+/// in the final block, so only that block needs the full 1000-iteration
+/// derivation. This avoids materializing the full key (2, 3 or 4 SHA-1 blocks
+/// for AES-128/192/256) for the overwhelming majority of candidates, which the
+/// cheap verifier comparison then rejects.
+fn pbkdf2_aes_verifier(password: &[u8], salt: &[u8], derived_key_len: usize) -> [u8; 2] {
+    const H_LEN: usize = 20; // SHA-1 output size
+    const ITERATIONS: u32 = 1000;
+    // Index (1-based) of the last PBKDF2 block, which holds the verifier.
+    let block_index = derived_key_len.div_ceil(H_LEN) as u32;
+    // Offset of the verifier within that block.
+    let offset = (derived_key_len - 2) - (block_index as usize - 1) * H_LEN;
+
+    // PRF keyed on the password; set up the ipad/opad state once and clone it for
+    // every iteration, like the pbkdf2 crate does internally.
+    let prf = <Hmac<Sha1> as KeyInit>::new_from_slice(password)
+        .expect("HMAC accepts any key length");
+
+    // U_1 = PRF(salt || INT_BE(block_index))
+    let mut mac = prf.clone();
+    mac.update(salt);
+    mac.update(&block_index.to_be_bytes());
+    let mut u = mac.finalize().into_bytes();
+    let mut t = u; // T = U_1
+
+    // T = U_1 ^ U_2 ^ ... ^ U_c
+    for _ in 1..ITERATIONS {
+        let mut mac = prf.clone();
+        mac.update(&u);
+        u = mac.finalize().into_bytes();
+        for (t_byte, u_byte) in t.iter_mut().zip(u.iter()) {
+            *t_byte ^= *u_byte;
+        }
+    }
+
+    [t[offset], t[offset + 1]]
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn password_checker(
     index: usize,
@@ -129,12 +170,13 @@ pub fn password_checker(
                 let mut potential_match = true;
                 // process AES KEY
                 if derived_key_len != 0 {
-                    // use PBKDF2 with HMAC-Sha1 to derive the key
-                    pbkdf2::pbkdf2::<Hmac<Sha1>>(&password_bytes, &salt, 1000, &mut derived_key)
-                        .expect("PBKDF2 should not fail");
-                    let pwd_verify = &derived_key[derived_key_len - 2..];
-                    // the last 2 bytes should equal the password verification value
-                    potential_match = verification_value == pwd_verify;
+                    // Fast pre-filter: the 2-byte verifier is the tail of the
+                    // PBKDF2 key, and PBKDF2 blocks are independent, so deriving
+                    // just the final block (instead of the whole key) is enough
+                    // to reject the ~65 535/65 536 wrong candidates with 2x-4x
+                    // less work (AES-128 to AES-256).
+                    let verifier = pbkdf2_aes_verifier(&password_bytes, &salt, derived_key_len);
+                    potential_match = verification_value == verifier;
                 }
 
                 // Empty AES entry: the reader can't authenticate a passing 2-byte
@@ -142,6 +184,9 @@ pub fn password_checker(
                 // wrong password in 65 536. Verify the WinZip authentication code
                 // (HMAC-SHA1-80 over the empty message) with the derived HMAC key.
                 if potential_match && let Some(expected_auth) = empty_entry_auth {
+                    // Verifier hit: now derive the whole key for the HMAC auth key.
+                    pbkdf2::pbkdf2::<Hmac<Sha1>>(&password_bytes, &salt, 1000, &mut derived_key)
+                        .expect("PBKDF2 should not fail");
                     let hmac_key = &derived_key[aes_key_length..aes_key_length * 2];
                     let mac = <Hmac<Sha1> as KeyInit>::new_from_slice(hmac_key)
                         .expect("HMAC accepts any key length");
@@ -219,6 +264,23 @@ pub fn password_checker(
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn verifier_matches_full_pbkdf2_derivation() {
+        // The fast single-block verifier must equal the last two bytes of the
+        // full derived key for every AES key length (16/24/32 -> dkLen 34/50/66).
+        let salt = b"0123456789abcdef";
+        for aes_key_length in [16usize, 24, 32] {
+            let derived_key_len = 2 * aes_key_length + 2;
+            for password in [b"abc".as_slice(), b"", b"a-longer-password-123"] {
+                let mut full = vec![0u8; derived_key_len];
+                pbkdf2::pbkdf2::<Hmac<Sha1>>(password, salt, 1000, &mut full).unwrap();
+                let expected = [full[derived_key_len - 2], full[derived_key_len - 1]];
+                let actual = pbkdf2_aes_verifier(password, salt, derived_key_len);
+                assert_eq!(actual, expected, "key_len={aes_key_length} pw={password:?}");
+            }
+        }
+    }
 
     #[test]
     fn filter_passwords_one_worker() {
