@@ -100,7 +100,11 @@ fn format_archive_listing(archive: &mut zip::ZipArchive<File>) -> String {
     let display_count = total.min(20);
     let mut listing = format!("Archive contents ({total} files):");
     for i in 0..display_count {
-        let name = archive.name_for_index(i).unwrap_or("<unknown>").to_string();
+        let name = archive
+            .name_for_index(i)
+            .and_then(Result::ok)
+            .map(|n| n.into_owned())
+            .unwrap_or_else(|| "<unknown>".to_string());
         let is_dir = name.ends_with('/');
         let encrypted = is_file_encrypted(archive, i);
         let kind = if is_dir { "dir" } else { "file" };
@@ -130,7 +134,11 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<ValidatedZip
         // The selected file is not encrypted, try to find one that is
         match find_first_encrypted_file(&mut archive) {
             Some(index) => {
-                let name = archive.name_for_index(index).unwrap_or("<unknown>");
+                let name = archive
+                    .name_for_index(index)
+                    .and_then(Result::ok)
+                    .map(|n| n.into_owned())
+                    .unwrap_or_else(|| "<unknown>".to_string());
                 eprintln!(
                     "File at index {file_number} is not encrypted, auto-selecting file at index {index} ({name})"
                 );
@@ -149,7 +157,8 @@ pub fn validate_zip(file_path: &Path, file_number: usize) -> Result<ValidatedZip
     let aes_data = archive.get_aes_verification_key_and_salt(target_index);
     let file_name = archive
         .name_for_index(target_index)
-        .map(ToString::to_string);
+        .and_then(Result::ok)
+        .map(|n| n.into_owned());
     let aes_info = if let Some(aes_zip_info) = aes_data.expect("Archive validated before-hand") {
         let aes_key_length = aes_zip_info.aes_mode.key_length();
         let verification_value = aes_zip_info.verification_value;
