@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "zip-password-finder"
-version = "0.12.0"
+version = "0.12.1"
 dependencies = [
  "clap",
  "criterion",
