@@ -2,7 +2,11 @@
 [![Build](https://github.com/agourlay/zip-password-finder/actions/workflows/ci.yml/badge.svg)](https://github.com/agourlay/zip-password-finder/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/zip-password-finder.svg)](https://crates.io/crates/zip-password-finder)
 
-`zip-password-finder` is a tool to find the password of protected zip files.
+`zip-password-finder` is a tool to find the password of protected ZIP and 7z archives.
+
+**[Website & demo →](https://agourlay.github.io/zip-password-finder/)**
+
+![demo](demo.gif "zip-password-finder cracking an AES-256 ZIP with a mask attack")
 
 The design of this tool is described in details in the following blog articles:
 - [Brute forcing protected ZIP archives in Rust](https://agourlay.github.io/brute-forcing-protected-zip-rust/)

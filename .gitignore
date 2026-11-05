@@ -18,3 +18,6 @@ perf.data.old
 trace.fxt
 trace.fxt.old
 flamegraph.svg
+
+# Built landing page
+/_site
