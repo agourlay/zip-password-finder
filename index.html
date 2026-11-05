@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zip-password-finder: recover protected ZIP and 7z passwords</title>
+<meta name="description" content="A fast, multi-threaded command-line tool in Rust that recovers the password of protected ZIP (ZipCrypto + AES) and 7z (AES-256) archives, with brute force, dictionary, and mask attacks.">
+<meta property="og:title" content="zip-password-finder: recover protected ZIP and 7z passwords">
+<meta property="og:description" content="A fast, multi-threaded command-line tool in Rust that recovers the password of protected ZIP and 7z archives, with brute force, dictionary, and mask attacks.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://agourlay.github.io/zip-password-finder/">
+<meta property="og:image" content="https://agourlay.github.io/zip-password-finder/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="zip-password-finder cracking an archive in a terminal, ending in Password found">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='14' y='28' width='36' height='29' rx='8' fill='%233fb950'/><path d='M21 29V19a11 11 0 0 1 22 0v3' fill='none' stroke='%233fb950' stroke-width='5' stroke-linecap='round'/><circle cx='32' cy='40' r='4' fill='%230d1117'/><rect x='30.3' y='40' width='3.4' height='9' rx='1.7' fill='%230d1117'/></svg>">
+<link rel="stylesheet" href="style.css?v=639376080">
+</head>
+<body>
+
+<header class="hero">
+  <nav class="top">
+  <a class="pill sponsor" href="https://github.com/sponsors/agourlay">
+    <span class="heart" aria-hidden="true">♥</span>
+    <span>Sponsor</span>
+  </a>
+  <a class="pill gh" href="https://github.com/agourlay/zip-password-finder" aria-label="zip-password-finder on GitHub">
+    <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span>GitHub</span>
+    <span class="stars" hidden>★ <span class="stars-n"></span></span>
+  </a>
+  </nav>
+  <div class="hero-inner">
+  <div class="logo" aria-hidden="true">
+    <svg viewBox="0 0 64 64" width="62" height="62" role="img">
+      <rect class="lk-body" x="14" y="28" width="36" height="29" rx="8"/>
+      <path class="lk-shackle" d="M21 29 V19 a11 11 0 0 1 22 0 v3" fill="none" stroke-width="4.5" stroke-linecap="round"/>
+      <circle class="lk-hole" cx="32" cy="40" r="3.8"/>
+      <rect class="lk-hole" x="30.4" y="40" width="3.2" height="9" rx="1.6"/>
+    </svg>
+  </div>
+  <h1><code>zip-password-finder</code>
+    <span class="genre">recover the password of a protected archive</span></h1>
+  <p class="lede">Point it at a locked ZIP or 7z file and let it work: brute
+    force a charset, run a wordlist, or match a mask you already half-know.
+    Multi-threaded Rust, one binary, honest progress with throughput and ETA.</p>
+  <ul class="formats" aria-label="Supported encryption">
+    <li>ZIP · ZipCrypto</li><li>ZIP · AES</li><li>7z · AES-256</li>
+  </ul>
+  <!-- Without script both commands show, each under its own label; with it,
+       the labels become tabs and the visitor's own system is picked. -->
+  <div class="install" id="install">
+    <div class="install-tabs" role="tablist" hidden>
+      <button type="button" role="tab" data-os="unix">macOS · Linux</button>
+      <button type="button" role="tab" data-os="windows">Windows</button>
+    </div>
+    <div class="install-cmd" data-os="unix" role="tabpanel">
+      <p class="install-label">macOS · Linux</p>
+      <div class="install-line">
+        <code>curl -fsSL https://agourlay.github.io/zip-password-finder/install.sh | sh</code>
+        <button type="button" class="copy" hidden>Copy</button>
+      </div>
+      <p class="install-note">Installs <span class="ver"></span>to <code>~/.local/bin</code> ·
+        <a href="install.sh">Read the script</a></p>
+    </div>
+    <div class="install-cmd" data-os="windows" role="tabpanel">
+      <p class="install-label">Windows (PowerShell)</p>
+      <div class="install-line">
+        <code>irm https://raw.githubusercontent.com/agourlay/zip-password-finder/master/site/install.ps1 | iex</code>
+        <button type="button" class="copy" hidden>Copy</button>
+      </div>
+      <p class="install-note">Installs <span class="ver"></span>to <code>%LOCALAPPDATA%\Programs</code> and adds it to your PATH ·
+        <a href="install.ps1">Read the script</a></p>
+    </div>
+  </div>
+  <p class="alt">
+    Or with Rust: <code>cargo install zip-password-finder</code> ·
+    <a href="https://github.com/agourlay/zip-password-finder/releases">download a release</a> ·
+    <a href="https://aur.archlinux.org/packages?O=0&amp;K=zip-password-finder">AUR</a>
+  </p>
+  <div class="term">
+    <div class="term-bar" aria-hidden="true">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="title">zip-password-finder</span>
+    </div>
+    <img src="demo.gif" width="1200" height="330"
+         alt="A terminal cracking an AES-256 ZIP with a mask attack: a progress bar advances with live throughput and ETA, then prints Password found: Qmn34" loading="eager">
+  </div>
+  </div>
+</header>
+
+<main>
+
+<section class="stats">
+  <p>Native Rust. Multi-threaded. One self-contained binary.</p>
+  <ul>
+    <li><b>ZIP + 7z</b> both, auto-detected</li>
+    <li><b>3 attacks</b> brute force, dictionary, mask</li>
+    <li><b>All cores</b> one worker per physical core</li>
+    <li><b>1 binary</b> no runtime deps</li>
+  </ul>
+</section>
+
+<section class="beats">
+  <div>
+    <h2>ZIP and 7z alike</h2>
+    <p>ZipCrypto and AES ZIPs, and AES-256 7z archives including
+    header-encrypted ones. The type is read from the file's contents, not its
+    name, and the encrypted entry is found for you.</p>
+  </div>
+  <div>
+    <h2>Three ways in</h2>
+    <p>Brute force a combined charset, feed a wordlist, or write a mask like
+    <code>?u?l?l?l?d?d</code> when you remember the shape. Custom charsets and
+    resuming from a known point are built in.</p>
+  </div>
+  <div>
+    <h2>Made to go fast</h2>
+    <p>Every physical core runs a worker. ZIP uses a cheap per-candidate
+    verifier; a native build with SHA instructions goes faster still. Ctrl-C
+    stops cleanly and shows the last password tried.</p>
+  </div>
+</section>
+
+<section class="attacks">
+  <h2>Pick the attack that fits</h2>
+  <p class="section-lede">The same three modes work on both ZIP and 7z. Give a
+  mode, or let it brute force by default.</p>
+  <div class="modes">
+    <div class="mode">
+      <div>
+        <h3>Brute force</h3>
+        <p>Every password in a charset, across a length range. The default
+        when no wordlist or mask is given.</p>
+      </div>
+      <pre><code><span class="prompt">$</span> zip-password-finder archive.zip <span class="tok">-c lud</span> --max-password-len 6</code></pre>
+    </div>
+    <div class="mode">
+      <div>
+        <h3>Dictionary</h3>
+        <p>Test the words of a file, one per line — the realistic choice for
+        slow 7z archives.</p>
+      </div>
+      <pre><code><span class="prompt">$</span> zip-password-finder archive.7z <span class="tok">-p wordlist.txt</span></code></pre>
+    </div>
+    <div class="mode">
+      <div>
+        <h3>Mask</h3>
+        <p>A per-position pattern for a password whose shape you remember:
+        one uppercase, three lowercase, two digits.</p>
+      </div>
+      <pre><code><span class="prompt">$</span> zip-password-finder archive.zip <span class="tok">--mask '?u?l?l?l?d?d'</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="perf">
+  <h2>Tuned for throughput</h2>
+  <p class="section-lede">By default it runs one worker per physical core —
+  more than that tends to lose to contention. For AES, a CPU with SHA
+  instructions and a <code>target-cpu=native</code> build make the biggest
+  difference.</p>
+
+  <div class="note">
+    <h3>A word on 7z</h3>
+    <p>7z derives its AES-256 key by iterating SHA-256 about 524,288 times per
+    candidate, against 1,000 rounds for ZIP-AES, so throughput is far lower
+    and <strong>brute force is impractical</strong> beyond very short
+    passwords. Reach for a <strong>dictionary or mask</strong> attack there.
+    AES-256 only, which is what every recent 7z build writes.</p>
+  </div>
+</section>
+
+<section class="faq">
+  <h2>Tips &amp; common questions</h2>
+  <div class="faq-list">
+    <details>
+      <summary>How long will it take?</summary>
+      <p>Brute force grows exponentially — each extra character, or a wider
+      charset, can turn minutes into years. If you remember any of the password's
+      shape, a <a href="https://github.com/agourlay/zip-password-finder#mask-attack">mask
+      attack</a> shrinks the space dramatically; otherwise a wordlist is usually
+      faster than trying every combination. The progress bar shows a live ETA so
+      you can decide whether to narrow the search.</p>
+    </details>
+    <details>
+      <summary>It printed "Password not found" — now what?</summary>
+      <p>That means the password simply was not in the space you searched, not
+      that the archive is unbreakable. Widen the charset (<code>-c</code>), raise
+      <code>--max-password-len</code>, or switch to a wordlist. Exit codes follow
+      <code>grep</code>: <b>0</b> found, <b>1</b> searched but not found,
+      <b>2</b> an error.</p>
+    </details>
+    <details>
+      <summary>Can I stop and resume a long run?</summary>
+      <p>Yes. Ctrl-C stops cleanly and prints the last password it tried. For a
+      brute-force search, start again from there with
+      <code>--starting-password</code> so you do not retread ground.</p>
+    </details>
+    <details>
+      <summary>How do I make it faster?</summary>
+      <p>Build native with <code>RUSTFLAGS="-C target-cpu=native"</code>, and for
+      AES use a CPU with SHA instructions. Keep the worker count at your physical
+      cores (the default) — more threads mostly add contention. Above all, narrow
+      the search: a mask or a wordlist beats raw brute force every time.</p>
+    </details>
+    <details>
+      <summary>Does it handle AES and 7z archives?</summary>
+      <p>Yes — ZipCrypto and AES ZIPs, and AES-256 7z including header-encrypted
+      ones (<code>-mhe=on</code>). The format is detected from the file's
+      contents, not its extension, and all three attack modes work the same on
+      both. Expect 7z to be much slower, so favour a dictionary or mask there.</p>
+    </details>
+    <details>
+      <summary>Is it legal to use?</summary>
+      <p>It is a recovery tool, for archives you own or are explicitly authorized
+      to access — a forgotten password on your own backup, say. Using it against
+      files that are not yours is on you.</p>
+    </details>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <p>
+    <a href="https://github.com/agourlay/zip-password-finder">GitHub</a> ·
+    <a href="https://crates.io/crates/zip-password-finder">crates.io</a> ·
+    <a href="https://agourlay.github.io/brute-forcing-protected-zip-rust/">How it works</a> ·
+    <a href="https://agourlay.github.io/follow-up-cracking-zip-rust/">Follow-up</a> ·
+    <a href="https://github.com/agourlay/zip-password-finder/blob/master/LICENSE">Apache-2.0</a>
+  </p>
+  <p class="fineprint">
+    For recovering archives you own or are authorized to access. The password
+    is written to stdout, progress to stderr, so a found result is easy to
+    capture in a script.
+  </p>
+</footer>
+
+<script>
+// Turn the two install commands into tabs, opened on the visitor's system,
+// and give each a copy button. Without this the page still shows both.
+(function () {
+  var box = document.querySelector(".install");
+  var tabs = box.querySelectorAll("[role=tab]");
+  var panels = box.querySelectorAll(".install-cmd");
+  function show(os) {
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", t.dataset.os === os); });
+    panels.forEach(function (p) { p.hidden = p.dataset.os !== os; });
+  }
+  tabs.forEach(function (t) { t.onclick = function () { show(t.dataset.os); }; });
+  box.querySelector(".install-tabs").hidden = false;
+  box.classList.add("tabbed");
+  var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.userAgent;
+  show(/^win|windows/i.test(ua) ? "windows" : "unix");
+
+  if (!navigator.clipboard) return;
+  box.querySelectorAll(".copy").forEach(function (b) {
+    b.hidden = false;
+    b.onclick = function () {
+      navigator.clipboard.writeText(b.previousElementSibling.textContent).then(function () {
+        b.textContent = "Copied";
+        setTimeout(function () { b.textContent = "Copy"; }, 1600);
+      });
+    };
+  });
+})();
+
+// The version the install commands fetch, named in each install note with its
+// release date on hover. Silent when GitHub does not answer, like the star
+// count below.
+fetch("https://api.github.com/repos/agourlay/zip-password-finder/releases/latest")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (rel) {
+    if (!rel || !rel.tag_name || !rel.published_at) return;
+    var when = new Date(rel.published_at).toLocaleDateString("en-GB",
+      { day: "numeric", month: "long", year: "numeric" });
+    document.querySelectorAll(".install-note .ver").forEach(function (v) {
+      v.textContent = rel.tag_name + " ";
+      v.title = "Released " + when;
+    });
+  })
+  .catch(function () {});
+
+// The star count, filled in when GitHub answers; the link stands on its own
+// when it does not.
+fetch("https://api.github.com/repos/agourlay/zip-password-finder")
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (repo) {
+    if (!repo || typeof repo.stargazers_count !== "number") return;
+    document.querySelector(".gh .stars-n").textContent = repo.stargazers_count;
+    document.querySelector(".gh .stars").hidden = false;
+  })
+  .catch(function () {});
+</script>
+
+</body>
+</html>
